@@ -1,0 +1,18 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "./db/query"
+    schema: "./db/migration"
+    database:
+      uri: "postgres://postgres:postgres@localhost:5432/postgres"
+    gen:
+      go:
+        package: "db"
+        sql_package: "pgx/v5"
+        out: "db/sqlc"
+        emit_interface: true
+        emit_json_tags: true
+        emit_pointers_for_null_types: true
+        emit_result_struct_pointers: true
+        overrides:
+

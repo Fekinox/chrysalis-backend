@@ -1,0 +1,24 @@
+services:
+  db:
+    image: "postgres:alpine"
+    # restart: always
+    shm_size: 128mb
+    env_file:
+      - .env
+    ports:
+      - 5432:5432
+    volumes:
+      - ./_postgres_data:/var/lib/postgresql/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+  nginx:
+    build:
+      context: ./
+      dockerfile: ./nginx/Dockerfile
+    ports:
+      - 5050:80
+    volumes:
+      - ./static:/home/app/web/static
+    # NOTE: in production want a safer way of doing this
+    extra_hosts:
+      - host.docker.internal:host-gateway
