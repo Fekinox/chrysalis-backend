@@ -1,0 +1,7 @@
+-- name: CreateTask :one
+-- name: GetClientTasks :many
+-- name: GetAllFormTasks :many
+-- name: AddCheckboxFieldToTask :exec
+-- name: AddRadioFieldToTask :exec
+-- name: AddTextFieldToTask :exec
+-- name: GetTaskByID :one
