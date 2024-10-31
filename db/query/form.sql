@@ -4,9 +4,18 @@ INSERT INTO forms (creator_id)
 RETURNING id, creator_id;
 
 -- name: CreateFormVersion :one
-INSERT INTO form_versions (form_id)
-  VALUES (sqlc.arg ('form_id'))
-RETURNING id, created_at, form_id;
+INSERT INTO form_versions (
+    form_id,
+    name,
+    slug,
+    description
+) VALUES (
+    $1,
+    $2,
+    $3,
+    $4
+)
+RETURNING *;
 
 -- name: NumTasksOnVersion :one
 SELECT
@@ -58,6 +67,34 @@ INSERT INTO checkbox_fields (
     form_version_id,
     idx,
     options;
+
+-- name: AddRadioFieldToForm :one
+INSERT INTO radio_fields (
+    form_version_id,
+    idx,
+    options
+) VALUES (
+    sqlc.arg('form_version_id'),
+    sqlc.arg('idx'),
+    sqlc.arg('options')
+) RETURNING
+    form_version_id,
+    idx,
+    options;
+
+-- name: AddTextFieldToForm :one
+INSERT INTO text_fields (
+    form_version_id,
+    idx,
+    paragraph
+) VALUES (
+    sqlc.arg('form_version_id'),
+    sqlc.arg('idx'),
+    sqlc.arg('paragraph')
+) RETURNING
+    form_version_id,
+    idx,
+    paragraph;
 
 -- name: GetCurrentFormVersion :many
 SELECT

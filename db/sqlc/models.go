@@ -54,6 +54,52 @@ func (ns NullFieldType) Value() (driver.Value, error) {
 	return string(ns.FieldType), nil
 }
 
+type TaskStatus string
+
+const (
+	TaskStatusPending    TaskStatus = "pending"
+	TaskStatusApproved   TaskStatus = "approved"
+	TaskStatusInprogress TaskStatus = "in progress"
+	TaskStatusDelayed    TaskStatus = "delayed"
+	TaskStatusComplete   TaskStatus = "complete"
+	TaskStatusCancelled  TaskStatus = "cancelled"
+)
+
+func (e *TaskStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TaskStatus(s)
+	case string:
+		*e = TaskStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TaskStatus: %T", src)
+	}
+	return nil
+}
+
+type NullTaskStatus struct {
+	TaskStatus TaskStatus `json:"task_status"`
+	Valid      bool       `json:"valid"` // Valid is true if TaskStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTaskStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.TaskStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TaskStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTaskStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TaskStatus), nil
+}
+
 type CheckboxField struct {
 	FormVersionID int64    `json:"form_version_id"`
 	Idx           int64    `json:"idx"`
@@ -66,7 +112,8 @@ type CurrentFormVersion struct {
 }
 
 type FilledCheckboxField struct {
-	FfID            int64    `json:"ff_id"`
+	TaskID          int64    `json:"task_id"`
+	Idx             int32    `json:"idx"`
 	SelectedOptions []string `json:"selected_options"`
 }
 
@@ -76,20 +123,21 @@ type FilledForm struct {
 }
 
 type FilledFormField struct {
-	ID     int64     `json:"id"`
-	TaskID *int64    `json:"task_id"`
-	Idx    *int32    `json:"idx"`
+	TaskID int64     `json:"task_id"`
+	Idx    int32     `json:"idx"`
 	Ftype  FieldType `json:"ftype"`
-	Filled *bool     `json:"filled"`
+	Filled bool      `json:"filled"`
 }
 
 type FilledRadioField struct {
-	FfID           int64   `json:"ff_id"`
+	TaskID         int64   `json:"task_id"`
+	Idx            int32   `json:"idx"`
 	SelectedOption *string `json:"selected_option"`
 }
 
 type FilledTextField struct {
-	FfID    int64   `json:"ff_id"`
+	TaskID  int64   `json:"task_id"`
+	Idx     int32   `json:"idx"`
 	Content *string `json:"content"`
 }
 
@@ -102,7 +150,7 @@ type FormField struct {
 	FormVersionID int64     `json:"form_version_id"`
 	Idx           int64     `json:"idx"`
 	Ftype         FieldType `json:"ftype"`
-	Prompt        *string   `json:"prompt"`
+	Prompt        string    `json:"prompt"`
 	Required      bool      `json:"required"`
 }
 
@@ -110,7 +158,7 @@ type FormVersion struct {
 	ID          int64              `json:"id"`
 	Name        string             `json:"name"`
 	Slug        string             `json:"slug"`
-	Description *string            `json:"description"`
+	Description string             `json:"description"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	FormID      int64              `json:"form_id"`
 }
@@ -125,14 +173,14 @@ type Task struct {
 	ID        int64              `json:"id"`
 	ClientID  pgtype.UUID        `json:"client_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Status    *int32             `json:"status"`
+	Status    TaskStatus         `json:"status"`
 	Slug      string             `json:"slug"`
 }
 
 type TextField struct {
 	FormVersionID int64 `json:"form_version_id"`
 	Idx           int64 `json:"idx"`
-	Paragraph     *bool `json:"paragraph"`
+	Paragraph     bool  `json:"paragraph"`
 }
 
 type User struct {

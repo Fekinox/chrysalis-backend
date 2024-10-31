@@ -9,8 +9,8 @@ BEGIN;
 -- All users (both creators and clients) in the database
 CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
-  username varchar(256) NOT NULL,
-  password varchar(256) NOT NULL,
+  username text NOT NULL,
+  password text NOT NULL,
   CONSTRAINT user_name_unique UNIQUE (username)
 );
 
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS forms (
 CREATE TABLE IF NOT EXISTS form_versions (
   id bigserial PRIMARY KEY,
   name text NOT NULL,
-  slug varchar(256) NOT NULL UNIQUE,
-  description text,
+  slug text NOT NULL UNIQUE,
+  description text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   form_id bigint NOT NULL,
   CONSTRAINT fk_form_id FOREIGN KEY (form_id) REFERENCES forms ON DELETE CASCADE
@@ -34,9 +34,8 @@ CREATE TABLE IF NOT EXISTS form_versions (
 
 -- Relation identifying a form with its current version
 CREATE TABLE IF NOT EXISTS current_form_versions (
-  form_id bigint NOT NULL,
+  form_id bigint PRIMARY KEY,
   form_version_id bigint NOT NULL,
-  CONSTRAINT form_id_unique UNIQUE (form_id),
   CONSTRAINT form_v_unique UNIQUE (form_version_id),
   CONSTRAINT fk_form_id FOREIGN KEY (form_id) REFERENCES forms ON DELETE CASCADE,
   CONSTRAINT fk_form_version_id FOREIGN KEY (form_version_id) REFERENCES
@@ -77,7 +76,7 @@ CREATE TABLE IF NOT EXISTS radio_fields (
 CREATE TABLE IF NOT EXISTS text_fields (
   form_version_id bigint,
   idx bigint,
-  paragraph boolean DEFAULT FALSE,
+  paragraph boolean NOT NULL DEFAULT FALSE,
   CONSTRAINT pk_text_field PRIMARY KEY (form_version_id, idx),
   CONSTRAINT fk_ff_id FOREIGN KEY (form_version_id, idx) REFERENCES form_fields ON DELETE CASCADE
 );
@@ -87,8 +86,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   id bigserial PRIMARY KEY,
   client_id uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  status integer,
-  slug varchar(256) NOT NULL UNIQUE,
+  status integer NOT NULL,
+  slug text NOT NULL UNIQUE,
   CONSTRAINT fk_client_id FOREIGN KEY (client_id) REFERENCES users ON DELETE CASCADE
 );
 
@@ -102,31 +101,41 @@ CREATE TABLE IF NOT EXISTS filled_forms (
     form_versions ON DELETE CASCADE
 );
 
+-- Form field associated with a given form
 CREATE TABLE IF NOT EXISTS filled_form_fields (
-  id bigserial PRIMARY KEY,
   task_id bigint,
   idx integer,
   ftype field_type NOT NULL,
   filled boolean,
+  CONSTRAINT pk_filled_form_fields PRIMARY KEY (task_id, idx),
   CONSTRAINT fk_task_id FOREIGN KEY (task_id) REFERENCES tasks ON DELETE CASCADE
 );
 
+-- Filled checkbox field with a list of the selected options
 CREATE TABLE IF NOT EXISTS filled_checkbox_fields (
-  ff_id bigint PRIMARY KEY,
+  task_id bigint,
+  idx integer,
   selected_options text[],
-  CONSTRAINT fk_ff_id FOREIGN KEY (ff_id) REFERENCES filled_form_fields ON DELETE CASCADE
+  CONSTRAINT pk_filled_checkbox_fields PRIMARY KEY (task_id, idx),
+  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields ON DELETE CASCADE
 );
 
+-- Filled radio field with the selected option
 CREATE TABLE IF NOT EXISTS filled_radio_fields (
-  ff_id bigint PRIMARY KEY,
+  task_id bigint,
+  idx integer,
   selected_option text,
-  CONSTRAINT fk_ff_id FOREIGN KEY (ff_id) REFERENCES filled_form_fields ON DELETE CASCADE
+  CONSTRAINT pk_filled_radio_fields PRIMARY KEY (task_id, idx),
+  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields ON DELETE CASCADE
 );
 
+-- Filled text field with the text content
 CREATE TABLE IF NOT EXISTS filled_text_fields (
-  ff_id bigint PRIMARY KEY,
+  task_id bigint,
+  idx integer,
   content text,
-  CONSTRAINT fk_ff_id FOREIGN KEY (ff_id) REFERENCES filled_form_fields ON DELETE CASCADE
+  CONSTRAINT pk_filled_text_fields PRIMARY KEY (task_id, idx),
+  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields ON DELETE CASCADE
 );
 
 COMMIT;

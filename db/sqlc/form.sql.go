@@ -64,7 +64,7 @@ type AddFormFieldToFormParams struct {
 	FormVersionID int64     `json:"form_version_id"`
 	Idx           int64     `json:"idx"`
 	Ftype         FieldType `json:"ftype"`
-	Prompt        *string   `json:"prompt"`
+	Prompt        string    `json:"prompt"`
 	Required      bool      `json:"required"`
 }
 
@@ -84,6 +84,62 @@ func (q *Queries) AddFormFieldToForm(ctx context.Context, arg AddFormFieldToForm
 		&i.Prompt,
 		&i.Required,
 	)
+	return &i, err
+}
+
+const addRadioFieldToForm = `-- name: AddRadioFieldToForm :one
+INSERT INTO radio_fields (
+    form_version_id,
+    idx,
+    options
+) VALUES (
+    $1,
+    $2,
+    $3
+) RETURNING
+    form_version_id,
+    idx,
+    options
+`
+
+type AddRadioFieldToFormParams struct {
+	FormVersionID int64    `json:"form_version_id"`
+	Idx           int64    `json:"idx"`
+	Options       []string `json:"options"`
+}
+
+func (q *Queries) AddRadioFieldToForm(ctx context.Context, arg AddRadioFieldToFormParams) (*RadioField, error) {
+	row := q.db.QueryRow(ctx, addRadioFieldToForm, arg.FormVersionID, arg.Idx, arg.Options)
+	var i RadioField
+	err := row.Scan(&i.FormVersionID, &i.Idx, &i.Options)
+	return &i, err
+}
+
+const addTextFieldToForm = `-- name: AddTextFieldToForm :one
+INSERT INTO text_fields (
+    form_version_id,
+    idx,
+    paragraph
+) VALUES (
+    $1,
+    $2,
+    $3
+) RETURNING
+    form_version_id,
+    idx,
+    paragraph
+`
+
+type AddTextFieldToFormParams struct {
+	FormVersionID int64 `json:"form_version_id"`
+	Idx           int64 `json:"idx"`
+	Paragraph     bool  `json:"paragraph"`
+}
+
+func (q *Queries) AddTextFieldToForm(ctx context.Context, arg AddTextFieldToFormParams) (*TextField, error) {
+	row := q.db.QueryRow(ctx, addTextFieldToForm, arg.FormVersionID, arg.Idx, arg.Paragraph)
+	var i TextField
+	err := row.Scan(&i.FormVersionID, &i.Idx, &i.Paragraph)
 	return &i, err
 }
 
@@ -122,21 +178,43 @@ func (q *Queries) CreateForm(ctx context.Context, creatorID pgtype.UUID) (*Form,
 }
 
 const createFormVersion = `-- name: CreateFormVersion :one
-INSERT INTO form_versions (form_id)
-  VALUES ($1)
-RETURNING id, created_at, form_id
+INSERT INTO form_versions (
+    form_id,
+    name,
+    slug,
+    description
+) VALUES (
+    $1,
+    $2,
+    $3,
+    $4
+)
+RETURNING id, name, slug, description, created_at, form_id
 `
 
-type CreateFormVersionRow struct {
-	ID        int64              `json:"id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	FormID    int64              `json:"form_id"`
+type CreateFormVersionParams struct {
+	FormID      int64  `json:"form_id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
 }
 
-func (q *Queries) CreateFormVersion(ctx context.Context, formID int64) (*CreateFormVersionRow, error) {
-	row := q.db.QueryRow(ctx, createFormVersion, formID)
-	var i CreateFormVersionRow
-	err := row.Scan(&i.ID, &i.CreatedAt, &i.FormID)
+func (q *Queries) CreateFormVersion(ctx context.Context, arg CreateFormVersionParams) (*FormVersion, error) {
+	row := q.db.QueryRow(ctx, createFormVersion,
+		arg.FormID,
+		arg.Name,
+		arg.Slug,
+		arg.Description,
+	)
+	var i FormVersion
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Description,
+		&i.CreatedAt,
+		&i.FormID,
+	)
 	return &i, err
 }
 
@@ -146,7 +224,7 @@ SELECT
   cfv.form_version_id,
   fv.created_at,
   ffs.ftype,
-  COALESCE(ffs.prompt, ''),
+  ffs.prompt,
   ffs.required,
   ch_fs.options AS "checkbox_options",
   r_fs.options AS "radio_options",
