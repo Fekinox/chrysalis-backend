@@ -22,3 +22,7 @@ services:
     # NOTE: in production want a safer way of doing this
     extra_hosts:
       - host.docker.internal:host-gateway
+  keydb:
+    image: "eqalpha/keydb"
+    ports:
+      - 6379:6379

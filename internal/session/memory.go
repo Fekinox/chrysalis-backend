@@ -6,6 +6,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// In-memory session manager. All sessions will end once the server closes, and
+// it's specific to this instance, so it's recommended to use a dedicated
+// key-value store in production.
 type MemorySessionManager struct {
 	mu               sync.RWMutex
 	sessions         map[SessionKey]*SessionData
