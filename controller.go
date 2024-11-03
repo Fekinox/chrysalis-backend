@@ -23,7 +23,7 @@ type ChrysalisController struct {
 	sessionManager session.Manager
 }
 
-type RegisterSchema struct {
+type LoginSchema struct {
 	Username string `form:"username" binding:"required"`
 	Password string `form:"password" binding:"required"`
 }
@@ -122,8 +122,8 @@ func (dc *ChrysalisController) DummyHandler(c *gin.Context) {
 }
 
 func (dc *ChrysalisController) Login(c *gin.Context) {
-	var registerSchema RegisterSchema
-	if err := c.ShouldBind(&registerSchema); err != nil {
+	var loginSchema LoginSchema
+	if err := c.ShouldBind(&loginSchema); err != nil {
 		c.AbortWithError(http.StatusBadRequest, BadRequestError)
 		return
 	}
@@ -131,7 +131,7 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 	// Retrieve user from database
 	u, err := dc.db.GetUserByUsername(
 		c.Request.Context(),
-		registerSchema.Username,
+		loginSchema.Username,
 	)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, BadRequestError)
@@ -139,7 +139,7 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 	}
 
 	// Compare password with hashed version
-	ok, err := ComparePasswordAndHash(registerSchema.Password, u.Password)
+	ok, err := ComparePasswordAndHash(loginSchema.Password, u.Password)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -149,7 +149,11 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 	}
 
 	// Create session
-	sessionKey := dc.sessionManager.NewSession(u.Username, u.ID)
+	sessionKey, err := dc.sessionManager.NewSession(u.Username, u.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
 
 	c.SetCookie(
 		"chrysalis-session-key",
@@ -169,20 +173,20 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 }
 
 func (dc *ChrysalisController) Register(c *gin.Context) {
-	var registerSchema RegisterSchema
-	if err := c.ShouldBind(&registerSchema); err != nil {
+	var loginSchema LoginSchema
+	if err := c.ShouldBind(&loginSchema); err != nil {
 		c.AbortWithError(http.StatusBadRequest, BadRequestError)
 		return
 	}
 
-	passHash, err := HashPassword(registerSchema.Password, DefaultParams())
+	passHash, err := HashPassword(loginSchema.Password, DefaultParams())
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
 	userParams := db.CreateUserParams{
-		Username: registerSchema.Username,
+		Username: loginSchema.Username,
 		Password: passHash,
 	}
 
@@ -196,16 +200,20 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 		}
 		return
 	} else if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, pgErr)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
 	// Create initial user session
-	sessionKey := dc.sessionManager.NewSession(u.Username, u.ID)
+	sessionKey, err := dc.sessionManager.NewSession(u.Username, u.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
 
 	c.SetCookie(
 		"chrysalis-session-key",
-		string(sessionKey),
+		sessionKey,
 		60*60*24,
 		"/",
 		"localhost",
@@ -230,7 +238,7 @@ func (dc *ChrysalisController) Logout(c *gin.Context) {
 		return
 	}
 
-	err := dc.sessionManager.EndSession(session.SessionKey(key))
+	err := dc.sessionManager.EndSession(key)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 	}

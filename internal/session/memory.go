@@ -2,22 +2,23 @@ package session
 
 import (
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 // In-memory session manager. All sessions will end once the server closes, and
-// it's specific to this instance, so it's recommended to use a dedicated
-// key-value store in production.
+// it only recognizes sessions that connect to the same machine, so this is not
+// ideal for use in production.
 type MemorySessionManager struct {
 	mu               sync.RWMutex
-	sessions         map[SessionKey]*SessionData
+	sessions         map[string]*SessionData
 	sessionKeyLength int
 }
 
 func NewMemorySessionManager() *MemorySessionManager {
 	return &MemorySessionManager{
-		sessions:         make(map[SessionKey]*SessionData),
+		sessions:         make(map[string]*SessionData),
 		sessionKeyLength: 128,
 	}
 }
@@ -25,29 +26,36 @@ func NewMemorySessionManager() *MemorySessionManager {
 func (sm *MemorySessionManager) NewSession(
 	username string,
 	id uuid.UUID,
-) SessionKey {
+) (string, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	key := uuid.NewString()
+	key, err := GenerateSessionKey()
+	if err != nil {
+		return "", err
+	}
 
 	for {
-		if _, ok := sm.sessions[SessionKey(key)]; !ok {
+		if _, ok := sm.sessions[key]; !ok {
 			break
 		}
-		key = uuid.NewString()
+		key, err = GenerateSessionKey()
+		if err != nil {
+			return "", err
+		}
 	}
 
-	sm.sessions[SessionKey(key)] = &SessionData{
-		Username: username,
-		UserID:   id,
+	sm.sessions[string(key)] = &SessionData{
+		Username:  username,
+		UserID:    id,
+		CreatedAt: time.Now(),
 	}
 
-	return SessionKey(key)
+	return key, nil
 }
 
 func (sm *MemorySessionManager) GetSessionData(
-	key SessionKey,
+	key string,
 ) (*SessionData, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
@@ -60,7 +68,7 @@ func (sm *MemorySessionManager) GetSessionData(
 }
 
 func (sm *MemorySessionManager) SetSessionData(
-	key SessionKey,
+	key string,
 	data *SessionData,
 ) error {
 	sm.mu.Lock()
@@ -75,33 +83,34 @@ func (sm *MemorySessionManager) SetSessionData(
 	return nil
 }
 
-func (sm *MemorySessionManager) RefreshSession(
-	key SessionKey,
-) (SessionKey, error) {
+func (sm *MemorySessionManager) RefreshSession(key string) (string, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
 	_, ok := sm.sessions[key]
 	if !ok {
-		return SessionKey(""), SessionNotFound
+		return "", SessionNotFound
 	}
 
 	newKey := uuid.NewString()
 
 	for {
-		if _, ok := sm.sessions[SessionKey(newKey)]; !ok {
+		if _, ok := sm.sessions[newKey]; !ok {
 			break
 		}
 		newKey = uuid.NewString()
 	}
 
-	sm.sessions[SessionKey(newKey)] = sm.sessions[key]
+	sm.sessions[newKey] = sm.sessions[key]
 	delete(sm.sessions, key)
 
-	return SessionKey(key), nil
+	return newKey, nil
 }
 
-func (sm *MemorySessionManager) EndSession(key SessionKey) error {
+func (sm *MemorySessionManager) EndSession(key string) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
 	_, ok := sm.sessions[key]
 	if !ok {
 		return SessionNotFound

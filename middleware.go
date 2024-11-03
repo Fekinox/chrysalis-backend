@@ -20,9 +20,12 @@ const MAX_API_KEY_LENGTH = 64
 var (
 	MissingAPIKeyError         = errors.New("Could not find API key")
 	InvalidAuthenticationError = errors.New("Invalid authentication")
-	RateLimitExceededError     = errors.New("Rate limit exceeded")
-	TimeoutError               = errors.New("Timeout")
-	NotLoggedInError           = errors.New("Not logged in")
+
+	RateLimitExceededError = errors.New("Rate limit exceeded")
+
+	TimeoutError = errors.New("Timeout")
+
+	NotLoggedInError = errors.New("Not logged in")
 )
 
 // Extracts the token from the given header in the request.
@@ -129,9 +132,7 @@ func SessionKey(sm session.Manager) gin.HandlerFunc {
 			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
 			return
 		}
-		sessionData, err := sm.GetSessionData(
-			session.SessionKey(sessionKey.Value),
-		)
+		sessionData, err := sm.GetSessionData(sessionKey.Value)
 		if err != nil {
 			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
 			return
