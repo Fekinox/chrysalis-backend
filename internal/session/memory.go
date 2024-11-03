@@ -7,14 +7,14 @@ import (
 )
 
 type MemorySessionManager struct {
-	mu sync.RWMutex
-	sessions map[SessionKey]*SessionData
+	mu               sync.RWMutex
+	sessions         map[SessionKey]*SessionData
 	sessionKeyLength int
 }
 
 func NewMemorySessionManager() *MemorySessionManager {
 	return &MemorySessionManager{
-		sessions: make(map[SessionKey]*SessionData),
+		sessions:         make(map[SessionKey]*SessionData),
 		sessionKeyLength: 128,
 	}
 }
@@ -34,7 +34,7 @@ func (sm *MemorySessionManager) NewSession(username string, id uuid.UUID) Sessio
 
 	sm.sessions[SessionKey(key)] = &SessionData{
 		Username: username,
-		UserID: id,
+		UserID:   id,
 	}
 
 	return SessionKey(key)

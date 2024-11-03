@@ -14,7 +14,7 @@ type SessionKey string
 
 type SessionData struct {
 	Username string
-	UserID uuid.UUID
+	UserID   uuid.UUID
 }
 
 type Manager interface {

@@ -14,21 +14,21 @@ import (
 // paraphrased from https://www.alexedwards.net/blog/how-to-hash-and-verify-passwords-with-argon2-in-go
 
 type PasswordParams struct {
-	Memory uint32
-	Iterations uint32
+	Memory      uint32
+	Iterations  uint32
 	Parallelism uint8
-	SaltLength uint32
-	KeyLength uint32
+	SaltLength  uint32
+	KeyLength   uint32
 }
 
 func DefaultParams() *PasswordParams {
 	return &PasswordParams{
-		Memory: 19456,
-		Iterations: 2,
+		Memory:      19456,
+		Iterations:  2,
 		Parallelism: 1,
 
 		SaltLength: 16,
-		KeyLength: 32,
+		KeyLength:  32,
 	}
 }
 
@@ -114,7 +114,14 @@ func ComparePasswordAndHash(password string, encodedHash string) (bool, error) {
 
 	fmt.Printf("%x\n", hash)
 
-	testHash := argon2.IDKey([]byte(password), salt, p.Iterations, p.Memory, p.Parallelism, p.KeyLength)
+	testHash := argon2.IDKey(
+		[]byte(password),
+		salt,
+		p.Iterations,
+		p.Memory,
+		p.Parallelism,
+		p.KeyLength,
+	)
 	fmt.Printf("%x\n", testHash)
 
 	return subtle.ConstantTimeCompare(hash, testHash) == 1, nil

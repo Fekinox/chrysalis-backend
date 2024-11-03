@@ -23,7 +23,6 @@ type Config struct {
 
 	ChrysalisAPIKey string `mapstructure:"CHRYSALIS_API_KEY"`
 
-
 	DecodedAPIKey []byte
 }
 

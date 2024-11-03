@@ -33,7 +33,7 @@ var (
 		return errors.New(fmt.Sprintf("Not found: %s", name))
 	}
 	UserAlreadyExists = errors.New("User already exists")
-	LoginFailedError = errors.New("Login failed")
+	LoginFailedError  = errors.New("Login failed")
 )
 
 func CreateController(cfg Config) (*ChrysalisController, error) {
@@ -107,9 +107,9 @@ func (dc *ChrysalisController) Close() error {
 
 func (dc *ChrysalisController) DummyHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"method": c.Request.Method,
-		"url": c.Request.URL.RequestURI(),
-		"sessionKey": c.Value("sessionKey"),
+		"method":      c.Request.Method,
+		"url":         c.Request.URL.RequestURI(),
+		"sessionKey":  c.Value("sessionKey"),
 		"sessionData": c.Value("sessionData"),
 	})
 }
@@ -144,7 +144,7 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 	c.SetCookie(
 		"chrysalis-session-key",
 		string(sessionKey),
-		60 * 60 * 24,
+		60*60*24,
 		"/",
 		"localhost",
 		false,
@@ -153,8 +153,8 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"session_key": sessionKey,
-		"username": u.Username,
-		"id": u.ID,
+		"username":    u.Username,
+		"id":          u.ID,
 	})
 }
 
@@ -196,7 +196,7 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 	c.SetCookie(
 		"chrysalis-session-key",
 		string(sessionKey),
-		60 * 60 * 24,
+		60*60*24,
 		"/",
 		"localhost",
 		false,
@@ -205,8 +205,8 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"session_key": sessionKey,
-		"username": u.Username,
-		"id": u.ID,
+		"username":    u.Username,
+		"id":          u.ID,
 	})
 }
 
@@ -219,7 +219,7 @@ func (dc *ChrysalisController) Logout(c *gin.Context) {
 
 	err := dc.sessionManager.EndSession(session.SessionKey(key))
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)	
+		c.AbortWithError(http.StatusInternalServerError, err)
 	}
 
 	c.SetCookie(

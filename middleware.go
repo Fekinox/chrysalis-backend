@@ -21,7 +21,7 @@ var (
 	InvalidAuthenticationError = errors.New("Invalid authentication")
 	RateLimitExceededError     = errors.New("Rate limit exceeded")
 	TimeoutError               = errors.New("Timeout")
-	NotLoggedInError		   = errors.New("Not logged in")
+	NotLoggedInError           = errors.New("Not logged in")
 )
 
 // Extracts the token from the given header in the request.
