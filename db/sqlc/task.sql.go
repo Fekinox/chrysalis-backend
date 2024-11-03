@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -168,13 +169,13 @@ INSERT INTO tasks (
 `
 
 type CreateTaskParams struct {
-	ClientID pgtype.UUID `json:"client_id"`
-	Slug     string      `json:"slug"`
+	ClientID uuid.UUID `json:"client_id"`
+	Slug     string    `json:"slug"`
 }
 
 type CreateTaskRow struct {
 	ID        int64              `json:"id"`
-	ClientID  pgtype.UUID        `json:"client_id"`
+	ClientID  uuid.UUID          `json:"client_id"`
 	Status    TaskStatus         `json:"status"`
 	Slug      string             `json:"slug"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
@@ -208,13 +209,13 @@ WHERE
 
 type GetClientTasksRow struct {
 	ID        int64              `json:"id"`
-	ClientID  pgtype.UUID        `json:"client_id"`
+	ClientID  uuid.UUID          `json:"client_id"`
 	Status    TaskStatus         `json:"status"`
 	Slug      string             `json:"slug"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-func (q *Queries) GetClientTasks(ctx context.Context, clientID pgtype.UUID) ([]*GetClientTasksRow, error) {
+func (q *Queries) GetClientTasks(ctx context.Context, clientID uuid.UUID) ([]*GetClientTasksRow, error) {
 	rows, err := q.db.Query(ctx, getClientTasks, clientID)
 	if err != nil {
 		return nil, err
@@ -257,7 +258,7 @@ WHERE
 
 type GetServiceTasksRow struct {
 	ID        int64              `json:"id"`
-	ClientID  pgtype.UUID        `json:"client_id"`
+	ClientID  uuid.UUID          `json:"client_id"`
 	Status    TaskStatus         `json:"status"`
 	Slug      string             `json:"slug"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`

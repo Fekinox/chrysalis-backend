@@ -4,10 +4,12 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
@@ -19,6 +21,7 @@ var (
 	InvalidAuthenticationError = errors.New("Invalid authentication")
 	RateLimitExceededError     = errors.New("Rate limit exceeded")
 	TimeoutError               = errors.New("Timeout")
+	NotLoggedInError		   = errors.New("Not logged in")
 )
 
 // Extracts the token from the given header in the request.
@@ -104,7 +107,7 @@ func ErrorHandler(cfg *Config) gin.HandlerFunc {
 		errList := make([]string, len(c.Errors))
 
 		for i, ginErr := range c.Errors {
-			// fmt.Println(ginErr)
+			fmt.Println(ginErr)
 			errList[i] = ginErr.Error()
 		}
 
@@ -115,5 +118,25 @@ func ErrorHandler(cfg *Config) gin.HandlerFunc {
 		} else {
 			c.JSON(-1, gin.H{"errors": http.StatusText(c.Writer.Status())})
 		}
+	}
+}
+
+func SessionKey(sm session.Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionKey, err := c.Request.Cookie("chrysalis-session-key")
+		if err != nil {
+			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
+			return
+		}
+		sessionData, err := sm.GetSessionData(session.SessionKey(sessionKey.Value))
+		if err != nil {
+			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
+			return
+		}
+
+		c.Set("sessionKey", sessionKey.Value)
+		c.Set("sessionData", sessionData)
+
+		c.Next()
 	}
 }

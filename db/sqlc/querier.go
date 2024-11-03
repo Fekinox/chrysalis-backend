@@ -7,7 +7,7 @@ package db
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 )
 
 type Querier interface {
@@ -21,12 +21,15 @@ type Querier interface {
 	AddTextFieldToForm(ctx context.Context, arg AddTextFieldToFormParams) (*TextField, error)
 	AddTextFieldToTask(ctx context.Context, arg AddTextFieldToTaskParams) (*FilledTextField, error)
 	AssignCurrentFormVersion(ctx context.Context, arg AssignCurrentFormVersionParams) (*CurrentFormVersion, error)
-	CreateForm(ctx context.Context, creatorID pgtype.UUID) (*Form, error)
+	CreateForm(ctx context.Context, creatorID uuid.UUID) (*Form, error)
 	CreateFormVersion(ctx context.Context, arg CreateFormVersionParams) (*FormVersion, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (*CreateTaskRow, error)
-	GetClientTasks(ctx context.Context, clientID pgtype.UUID) ([]*GetClientTasksRow, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
+	GetClientTasks(ctx context.Context, clientID uuid.UUID) ([]*GetClientTasksRow, error)
 	GetCurrentFormVersion(ctx context.Context, formID int64) ([]*GetCurrentFormVersionRow, error)
 	GetServiceTasks(ctx context.Context, formID int64) ([]*GetServiceTasksRow, error)
+	GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	NumTasksOnVersion(ctx context.Context, formVersionID int64) (int64, error)
 }
 

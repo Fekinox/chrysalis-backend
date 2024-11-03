@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -142,8 +143,8 @@ type FilledTextField struct {
 }
 
 type Form struct {
-	ID        int64       `json:"id"`
-	CreatorID pgtype.UUID `json:"creator_id"`
+	ID        int64     `json:"id"`
+	CreatorID uuid.UUID `json:"creator_id"`
 }
 
 type FormField struct {
@@ -171,7 +172,7 @@ type RadioField struct {
 
 type Task struct {
 	ID        int64              `json:"id"`
-	ClientID  pgtype.UUID        `json:"client_id"`
+	ClientID  uuid.UUID          `json:"client_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	Status    TaskStatus         `json:"status"`
 	Slug      string             `json:"slug"`
@@ -184,7 +185,7 @@ type TextField struct {
 }
 
 type User struct {
-	ID       pgtype.UUID `json:"id"`
-	Username string      `json:"username"`
-	Password string      `json:"password"`
+	ID       uuid.UUID `json:"id"`
+	Username string    `json:"username"`
+	Password string    `json:"password"`
 }

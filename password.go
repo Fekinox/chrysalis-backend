@@ -23,9 +23,10 @@ type PasswordParams struct {
 
 func DefaultParams() *PasswordParams {
 	return &PasswordParams{
-		Memory: 64 * 1024,
-		Iterations: 3,
-		Parallelism: 2,
+		Memory: 19456,
+		Iterations: 2,
+		Parallelism: 1,
+
 		SaltLength: 16,
 		KeyLength: 32,
 	}
@@ -75,7 +76,7 @@ func DecodePasswordHash(encodedHash string) (p *PasswordParams, salt, hash []byt
 	}
 
 	var version int
-	_, err = fmt.Sscanf(tokens[2], "v=%id", &version)
+	_, err = fmt.Sscanf(tokens[2], "v=%d", &version)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -96,7 +97,7 @@ func DecodePasswordHash(encodedHash string) (p *PasswordParams, salt, hash []byt
 	}
 	p.SaltLength = uint32(len(salt))
 
-	hash, err = base64.RawStdEncoding.Strict().DecodeString(tokens[4])
+	hash, err = base64.RawStdEncoding.Strict().DecodeString(tokens[5])
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -111,7 +112,10 @@ func ComparePasswordAndHash(password string, encodedHash string) (bool, error) {
 		return false, err
 	}
 
+	fmt.Printf("%x\n", hash)
+
 	testHash := argon2.IDKey([]byte(password), salt, p.Iterations, p.Memory, p.Parallelism, p.KeyLength)
+	fmt.Printf("%x\n", testHash)
 
 	return subtle.ConstantTimeCompare(hash, testHash) == 1, nil
 }

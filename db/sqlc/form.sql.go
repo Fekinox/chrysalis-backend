@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -170,7 +171,7 @@ INSERT INTO forms (creator_id)
 RETURNING id, creator_id
 `
 
-func (q *Queries) CreateForm(ctx context.Context, creatorID pgtype.UUID) (*Form, error) {
+func (q *Queries) CreateForm(ctx context.Context, creatorID uuid.UUID) (*Form, error) {
 	row := q.db.QueryRow(ctx, createForm, creatorID)
 	var i Form
 	err := row.Scan(&i.ID, &i.CreatorID)
