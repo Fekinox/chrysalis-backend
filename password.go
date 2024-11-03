@@ -48,7 +48,14 @@ func HashPassword(password string, p *PasswordParams) (string, error) {
 		return "", err
 	}
 
-	hash := argon2.IDKey([]byte(password), salt, p.Iterations, p.Memory, p.Parallelism, p.KeyLength)
+	hash := argon2.IDKey(
+		[]byte(password),
+		salt,
+		p.Iterations,
+		p.Memory,
+		p.Parallelism,
+		p.KeyLength,
+	)
 
 	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
 	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
@@ -65,7 +72,9 @@ func HashPassword(password string, p *PasswordParams) (string, error) {
 	return encodedHash, nil
 }
 
-func DecodePasswordHash(encodedHash string) (p *PasswordParams, salt, hash []byte, err error) {
+func DecodePasswordHash(
+	encodedHash string,
+) (p *PasswordParams, salt, hash []byte, err error) {
 	tokens := strings.Split(encodedHash, "$")
 	if len(tokens) != 6 {
 		return nil, nil, nil, err
@@ -86,7 +95,13 @@ func DecodePasswordHash(encodedHash string) (p *PasswordParams, salt, hash []byt
 
 	p = &PasswordParams{}
 
-	_, err = fmt.Sscanf(tokens[3], "m=%d,t=%d,p=%d", &p.Memory, &p.Iterations, &p.Parallelism)
+	_, err = fmt.Sscanf(
+		tokens[3],
+		"m=%d,t=%d,p=%d",
+		&p.Memory,
+		&p.Iterations,
+		&p.Parallelism,
+	)
 	if err != nil {
 		return nil, nil, nil, err
 	}

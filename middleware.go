@@ -128,7 +128,9 @@ func SessionKey(sm session.Manager) gin.HandlerFunc {
 			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
 			return
 		}
-		sessionData, err := sm.GetSessionData(session.SessionKey(sessionKey.Value))
+		sessionData, err := sm.GetSessionData(
+			session.SessionKey(sessionKey.Value),
+		)
 		if err != nil {
 			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
 			return

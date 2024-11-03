@@ -88,9 +88,15 @@ func (dc *ChrysalisController) MountHandlers() {
 
 	// Tasks associated with a particular service
 	users.GET("/:username/services/:servicename/tasks", dc.DummyHandler)
-	users.GET("/:username/services/:servicename/tasks/:taskslug", dc.DummyHandler)
+	users.GET(
+		"/:username/services/:servicename/tasks/:taskslug",
+		dc.DummyHandler,
+	)
 	users.POST("/:username/services/:servicename/tasks", dc.DummyHandler)
-	users.PUT("/:username/services/:servicename/tasks/:taskslug", dc.DummyHandler)
+	users.PUT(
+		"/:username/services/:servicename/tasks/:taskslug",
+		dc.DummyHandler,
+	)
 }
 
 func (dc *ChrysalisController) Start(addr string) error {
@@ -122,7 +128,10 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 	}
 
 	// Retrieve user from database
-	u, err := dc.db.GetUserByUsername(c.Request.Context(), registerSchema.Username)
+	u, err := dc.db.GetUserByUsername(
+		c.Request.Context(),
+		registerSchema.Username,
+	)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, BadRequestError)
 		return
@@ -213,7 +222,10 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 func (dc *ChrysalisController) Logout(c *gin.Context) {
 	key, ok := c.Value("sessionKey").(string)
 	if !ok {
-		c.AbortWithError(http.StatusInternalServerError, errors.New("Session key not set"))
+		c.AbortWithError(
+			http.StatusInternalServerError,
+			errors.New("Session key not set"),
+		)
 		return
 	}
 

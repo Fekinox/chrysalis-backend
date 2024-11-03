@@ -19,7 +19,10 @@ func NewMemorySessionManager() *MemorySessionManager {
 	}
 }
 
-func (sm *MemorySessionManager) NewSession(username string, id uuid.UUID) SessionKey {
+func (sm *MemorySessionManager) NewSession(
+	username string,
+	id uuid.UUID,
+) SessionKey {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -40,7 +43,9 @@ func (sm *MemorySessionManager) NewSession(username string, id uuid.UUID) Sessio
 	return SessionKey(key)
 }
 
-func (sm *MemorySessionManager) GetSessionData(key SessionKey) (*SessionData, error) {
+func (sm *MemorySessionManager) GetSessionData(
+	key SessionKey,
+) (*SessionData, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
@@ -51,7 +56,10 @@ func (sm *MemorySessionManager) GetSessionData(key SessionKey) (*SessionData, er
 	return data, nil
 }
 
-func (sm *MemorySessionManager) SetSessionData(key SessionKey, data *SessionData) error {
+func (sm *MemorySessionManager) SetSessionData(
+	key SessionKey,
+	data *SessionData,
+) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -64,7 +72,9 @@ func (sm *MemorySessionManager) SetSessionData(key SessionKey, data *SessionData
 	return nil
 }
 
-func (sm *MemorySessionManager) RefreshSession(key SessionKey) (SessionKey, error) {
+func (sm *MemorySessionManager) RefreshSession(
+	key SessionKey,
+) (SessionKey, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
