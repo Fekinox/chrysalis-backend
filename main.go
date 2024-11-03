@@ -10,12 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Fekinox/chrysalis-backend/internal/config"
 	"github.com/spf13/viper"
 )
 
 func main() {
 	v := viper.New()
-	config := LoadConfig(v, ".env")
+	config := config.LoadConfig(v, ".env")
 
 	dc, err := CreateController(config)
 	if err != nil {

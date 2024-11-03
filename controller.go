@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	db "github.com/Fekinox/chrysalis-backend/db/sqlc"
+	"github.com/Fekinox/chrysalis-backend/internal/config"
 	session "github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -15,7 +16,7 @@ import (
 
 type ChrysalisController struct {
 	db     *db.Queries
-	cfg    Config
+	cfg    config.Config
 	router *gin.Engine
 	conn   *pgx.Conn
 
@@ -36,7 +37,7 @@ var (
 	LoginFailedError  = errors.New("Login failed")
 )
 
-func CreateController(cfg Config) (*ChrysalisController, error) {
+func CreateController(cfg config.Config) (*ChrysalisController, error) {
 	var engine *gin.Engine
 	if cfg.Environment == "test" || cfg.Environment == "release" {
 		gin.SetMode(gin.ReleaseMode)

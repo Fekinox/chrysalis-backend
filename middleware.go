@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fekinox/chrysalis-backend/internal/config"
 	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
@@ -45,7 +46,7 @@ func extractToken(c *gin.Context, header string) (string, error) {
 // constant-time comparison is necessary to prevent timing attacks: an
 // adversary could guess the key by measuring how long it takes for a naive
 // equality algorithm to return.
-func verifyApiKey(cfg *Config, s string) bool {
+func verifyApiKey(cfg *config.Config, s string) bool {
 	hash := sha256.Sum256([]byte(s))
 	key := hash[:]
 
@@ -53,7 +54,7 @@ func verifyApiKey(cfg *Config, s string) bool {
 }
 
 // Rejects all requests that do not have a valid API key.
-func ApiKeyMiddleware(cfg *Config) gin.HandlerFunc {
+func ApiKeyMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key, err := extractToken(c, "Authorization")
 		if err != nil {
@@ -96,7 +97,7 @@ func Delay(timeout time.Duration) gin.HandlerFunc {
 }
 
 // Handles all errors raised by event handlers and middleware.
-func ErrorHandler(cfg *Config) gin.HandlerFunc {
+func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
