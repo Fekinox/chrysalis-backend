@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	db "github.com/Fekinox/chrysalis-backend/db/sqlc"
 	"github.com/Fekinox/chrysalis-backend/internal/config"
-	session "github.com/Fekinox/chrysalis-backend/internal/session"
+	"github.com/Fekinox/chrysalis-backend/internal/db"
+	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
