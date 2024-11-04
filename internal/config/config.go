@@ -24,6 +24,9 @@ type Config struct {
 	ChrysalisAPIKey string `mapstructure:"CHRYSALIS_API_KEY"`
 
 	DecodedAPIKey []byte
+
+	MigrationPath string `mapstructure:"MIGRATION_PATH"`
+	Recreate      bool   `mapstructure:"RECREATE"`
 }
 
 func (c *Config) GetDBUrl() string {

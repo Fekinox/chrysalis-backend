@@ -29,12 +29,12 @@ type LoginSchema struct {
 }
 
 var (
-	BadRequestError = errors.New("Bad request")
-	NotFoundError   = func(name string) error {
+	ErrBadRequest = errors.New("Bad request")
+	ErrNotFound   = func(name string) error {
 		return errors.New(fmt.Sprintf("Not found: %s", name))
 	}
-	UserAlreadyExists = errors.New("User already exists")
-	LoginFailedError  = errors.New("Login failed")
+	ErrUserAlreadyExists = errors.New("User already exists")
+	ErrLoginFailed       = errors.New("Login failed")
 )
 
 func CreateController(cfg config.Config) (*ChrysalisController, error) {
@@ -124,7 +124,7 @@ func (dc *ChrysalisController) DummyHandler(c *gin.Context) {
 func (dc *ChrysalisController) Login(c *gin.Context) {
 	var loginSchema LoginSchema
 	if err := c.ShouldBind(&loginSchema); err != nil {
-		c.AbortWithError(http.StatusBadRequest, BadRequestError)
+		c.AbortWithError(http.StatusBadRequest, ErrBadRequest)
 		return
 	}
 
@@ -134,7 +134,7 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 		loginSchema.Username,
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, BadRequestError)
+		c.AbortWithError(http.StatusBadRequest, ErrLoginFailed)
 		return
 	}
 
@@ -144,7 +144,7 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	} else if !ok {
-		c.AbortWithError(http.StatusForbidden, LoginFailedError)
+		c.AbortWithError(http.StatusForbidden, ErrLoginFailed)
 		return
 	}
 
@@ -175,7 +175,7 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 func (dc *ChrysalisController) Register(c *gin.Context) {
 	var loginSchema LoginSchema
 	if err := c.ShouldBind(&loginSchema); err != nil {
-		c.AbortWithError(http.StatusBadRequest, BadRequestError)
+		c.AbortWithError(http.StatusBadRequest, ErrBadRequest)
 		return
 	}
 
@@ -194,7 +194,7 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		if pgErr.Code == "23505" {
-			c.AbortWithError(http.StatusConflict, UserAlreadyExists)
+			c.AbortWithError(http.StatusConflict, ErrUserAlreadyExists)
 		} else {
 			c.AbortWithError(http.StatusInternalServerError, pgErr)
 		}

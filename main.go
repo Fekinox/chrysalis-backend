@@ -11,12 +11,32 @@ import (
 	"time"
 
 	"github.com/Fekinox/chrysalis-backend/internal/config"
+	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/spf13/viper"
 )
 
 func main() {
 	v := viper.New()
 	config := config.LoadConfig(v, ".env")
+
+	if config.Environment == "dev" {
+		pool, res, err := db.InitTestDB(&config)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		defer func() {
+			fmt.Println("purging database")
+			if err := pool.Purge(res); err != nil {
+				log.Fatalf("Could not purge database: %s", err)
+			}
+		}()
+	}
+
+	err := db.AutoMigrate(&config)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	dc, err := CreateController(config)
 	if err != nil {
