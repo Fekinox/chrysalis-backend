@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fekinox/chrysalis-backend/internal/config"
 	"github.com/Fekinox/chrysalis-backend/internal/db"
+	"github.com/Fekinox/chrysalis-backend/internal/formfield"
 	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -75,11 +76,11 @@ func (dc *ChrysalisController) MountHandlers() {
 	users := api.Group("/users")
 	// Get all services a user owns
 	users.GET("/:username/services", dc.DummyHandler)
-	users.GET("/:username/services/:servicename", dc.DummyHandler)
+	users.GET("/:username/services/:servicename", dc.GetServiceBySlug)
 
 	users.POST("/:username/services",
 		SessionKey(dc.sessionManager),
-		dc.DummyHandler)
+		dc.CreateService)
 	users.PUT("/:username/services/:servicename", dc.DummyHandler)
 	users.DELETE("/:username/services/:servicename", dc.DummyHandler)
 
@@ -256,4 +257,117 @@ func (dc *ChrysalisController) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully logged out",
 	})
+}
+
+func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
+	c.AbortWithError(
+		http.StatusServiceUnavailable,
+		errors.New("Unimplemented"),
+	)
+}
+
+func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
+	tx, err := dc.conn.Begin(c.Request.Context())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+	qtx := dc.db.WithTx(tx)
+
+	username := c.Param("username")
+	serviceSlug := c.Param("servicename")
+	if username == "" || serviceSlug == "" {
+		c.AbortWithError(
+			http.StatusBadRequest,
+			errors.New("Must provide username and service name"),
+		)
+		return
+	}
+
+	user, err := qtx.GetUserByUsername(c.Request.Context(), username)
+	if err != nil {
+		c.AbortWithError(http.StatusNotFound, errors.New("User not found"))
+	}
+
+	params := db.GetCurrentFormVersionBySlugParams{
+		Slug:      serviceSlug,
+		CreatorID: user.ID,
+	}
+
+	service, err := qtx.GetCurrentFormVersionBySlug(c.Request.Context(), params)
+	if err != nil {
+		c.AbortWithError(http.StatusNotFound, errors.New("Service not found"))
+		return
+	}
+
+	if err = tx.Commit(c.Request.Context()); err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, service)
+}
+
+type NewServiceSpec struct {
+	Title       string                `json:"title"`
+	Slug        string                `json:"slug"`
+	Description string                `json:"description"`
+	Fields      []formfield.FormField `json:"fields"`
+}
+
+func (dc *ChrysalisController) CreateService(c *gin.Context) {
+	tx, err := dc.conn.Begin(c.Request.Context())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	_ = dc.db.WithTx(tx)
+
+	username := c.Param("username")
+	if !dc.IsUser(c, username) {
+		c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
+		return
+	}
+
+	var spec NewServiceSpec
+	err = c.BindJSON(&spec)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	if err = tx.Commit(c.Request.Context()); err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, spec)
+}
+
+func (dc *ChrysalisController) UpdateService(c *gin.Context) {
+	c.AbortWithError(
+		http.StatusServiceUnavailable,
+		errors.New("Unimplemented"),
+	)
+}
+
+func (dc *ChrysalisController) DeleteService(c *gin.Context) {
+	c.AbortWithError(
+		http.StatusServiceUnavailable,
+		errors.New("Unimplemented"),
+	)
+}
+
+func (dc *ChrysalisController) IsUser(c *gin.Context, user string) bool {
+	if user == "" || c.Value("sessionKey") == "" {
+		return false
+	}
+	data, ok := c.Value("sessionData").(*session.SessionData)
+	if !ok {
+		return false
+	}
+	return data.Username == user
 }

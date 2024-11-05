@@ -1,19 +1,17 @@
 -- name: CreateForm :one
-INSERT INTO forms (creator_id)
-  VALUES (sqlc.arg ('creator_id'))
-RETURNING id, creator_id;
+INSERT INTO forms (creator_id, slug)
+  VALUES (sqlc.arg ('creator_id'), sqlc.arg('slug'))
+RETURNING id, creator_id, slug;
 
 -- name: CreateFormVersion :one
 INSERT INTO form_versions (
     form_id,
     name,
-    slug,
     description
 ) VALUES (
     $1,
     $2,
-    $3,
-    $4
+    $3
 )
 RETURNING *;
 
@@ -96,11 +94,25 @@ INSERT INTO text_fields (
     idx,
     paragraph;
 
--- name: GetCurrentFormVersion :many
+-- name: GetCurrentFormVersionBySlug :one
 SELECT
   forms.id,
-  cfv.form_version_id,
-  fv.created_at,
+  forms.creator_id,
+  forms.slug,
+  fv.id AS form_version_id,
+  fv.name,
+  fv.description,
+  fv.created_at
+FROM
+  forms
+  INNER JOIN current_form_versions AS cfv ON forms.id = cfv.form_id
+  INNER JOIN form_versions AS fv ON fv.id = cfv.form_version_id
+WHERE
+  forms.slug = sqlc.arg ('slug') AND
+  forms.creator_id = sqlc.arg('creator_id');
+
+-- name: GetFormFields :many
+SELECT
   ffs.ftype,
   ffs.prompt,
   ffs.required,
@@ -108,14 +120,12 @@ SELECT
   r_fs.options AS "radio_options",
   t_fs.paragraph AS "text_paragraph"
 FROM
-  forms
-  INNER JOIN current_form_versions AS cfv ON forms.id = cfv.form_id
-  INNER JOIN form_versions AS fv ON fv.id = cfv.form_version_id
-  INNER JOIN form_fields AS ffs USING (form_version_id)
+  form_versions AS fv
+  INNER JOIN form_fields AS ffs ON fv.id = ffs.form_version_id
   LEFT JOIN checkbox_fields AS ch_fs USING (form_version_id, idx)
   LEFT JOIN radio_fields AS r_fs USING (form_version_id, idx)
   LEFT JOIN text_fields AS t_fs USING (form_version_id, idx)
 WHERE
-  forms.id = sqlc.arg ('form_id')::bigint
+  fv.id = sqlc.arg ('form_version_id')::bigint
 ORDER BY
   ffs.idx;

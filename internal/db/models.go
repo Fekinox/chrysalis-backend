@@ -145,6 +145,7 @@ type FilledTextField struct {
 type Form struct {
 	ID        int64     `json:"id"`
 	CreatorID uuid.UUID `json:"creator_id"`
+	Slug      string    `json:"slug"`
 }
 
 type FormField struct {
@@ -158,7 +159,6 @@ type FormField struct {
 type FormVersion struct {
 	ID          int64              `json:"id"`
 	Name        string             `json:"name"`
-	Slug        string             `json:"slug"`
 	Description string             `json:"description"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	FormID      int64              `json:"form_id"`

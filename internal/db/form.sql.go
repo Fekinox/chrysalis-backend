@@ -166,15 +166,20 @@ func (q *Queries) AssignCurrentFormVersion(ctx context.Context, arg AssignCurren
 }
 
 const createForm = `-- name: CreateForm :one
-INSERT INTO forms (creator_id)
-  VALUES ($1)
-RETURNING id, creator_id
+INSERT INTO forms (creator_id, slug)
+  VALUES ($1, $2)
+RETURNING id, creator_id, slug
 `
 
-func (q *Queries) CreateForm(ctx context.Context, creatorID uuid.UUID) (*Form, error) {
-	row := q.db.QueryRow(ctx, createForm, creatorID)
+type CreateFormParams struct {
+	CreatorID uuid.UUID `json:"creator_id"`
+	Slug      string    `json:"slug"`
+}
+
+func (q *Queries) CreateForm(ctx context.Context, arg CreateFormParams) (*Form, error) {
+	row := q.db.QueryRow(ctx, createForm, arg.CreatorID, arg.Slug)
 	var i Form
-	err := row.Scan(&i.ID, &i.CreatorID)
+	err := row.Scan(&i.ID, &i.CreatorID, &i.Slug)
 	return &i, err
 }
 
@@ -182,36 +187,27 @@ const createFormVersion = `-- name: CreateFormVersion :one
 INSERT INTO form_versions (
     form_id,
     name,
-    slug,
     description
 ) VALUES (
     $1,
     $2,
-    $3,
-    $4
+    $3
 )
-RETURNING id, name, slug, description, created_at, form_id
+RETURNING id, name, description, created_at, form_id
 `
 
 type CreateFormVersionParams struct {
 	FormID      int64  `json:"form_id"`
 	Name        string `json:"name"`
-	Slug        string `json:"slug"`
 	Description string `json:"description"`
 }
 
 func (q *Queries) CreateFormVersion(ctx context.Context, arg CreateFormVersionParams) (*FormVersion, error) {
-	row := q.db.QueryRow(ctx, createFormVersion,
-		arg.FormID,
-		arg.Name,
-		arg.Slug,
-		arg.Description,
-	)
+	row := q.db.QueryRow(ctx, createFormVersion, arg.FormID, arg.Name, arg.Description)
 	var i FormVersion
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Slug,
 		&i.Description,
 		&i.CreatedAt,
 		&i.FormID,
@@ -219,11 +215,56 @@ func (q *Queries) CreateFormVersion(ctx context.Context, arg CreateFormVersionPa
 	return &i, err
 }
 
-const getCurrentFormVersion = `-- name: GetCurrentFormVersion :many
+const getCurrentFormVersionBySlug = `-- name: GetCurrentFormVersionBySlug :one
 SELECT
   forms.id,
-  cfv.form_version_id,
-  fv.created_at,
+  forms.creator_id,
+  forms.slug,
+  fv.id AS form_version_id,
+  fv.name,
+  fv.description,
+  fv.created_at
+FROM
+  forms
+  INNER JOIN current_form_versions AS cfv ON forms.id = cfv.form_id
+  INNER JOIN form_versions AS fv ON fv.id = cfv.form_version_id
+WHERE
+  forms.slug = $1 AND
+  forms.creator_id = $2
+`
+
+type GetCurrentFormVersionBySlugParams struct {
+	Slug      string    `json:"slug"`
+	CreatorID uuid.UUID `json:"creator_id"`
+}
+
+type GetCurrentFormVersionBySlugRow struct {
+	ID            int64              `json:"id"`
+	CreatorID     uuid.UUID          `json:"creator_id"`
+	Slug          string             `json:"slug"`
+	FormVersionID int64              `json:"form_version_id"`
+	Name          string             `json:"name"`
+	Description   string             `json:"description"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetCurrentFormVersionBySlug(ctx context.Context, arg GetCurrentFormVersionBySlugParams) (*GetCurrentFormVersionBySlugRow, error) {
+	row := q.db.QueryRow(ctx, getCurrentFormVersionBySlug, arg.Slug, arg.CreatorID)
+	var i GetCurrentFormVersionBySlugRow
+	err := row.Scan(
+		&i.ID,
+		&i.CreatorID,
+		&i.Slug,
+		&i.FormVersionID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+	)
+	return &i, err
+}
+
+const getFormFields = `-- name: GetFormFields :many
+SELECT
   ffs.ftype,
   ffs.prompt,
   ffs.required,
@@ -231,44 +272,36 @@ SELECT
   r_fs.options AS "radio_options",
   t_fs.paragraph AS "text_paragraph"
 FROM
-  forms
-  INNER JOIN current_form_versions AS cfv ON forms.id = cfv.form_id
-  INNER JOIN form_versions AS fv ON fv.id = cfv.form_version_id
-  INNER JOIN form_fields AS ffs USING (form_version_id)
+  form_versions AS fv
+  INNER JOIN form_fields AS ffs ON fv.id = ffs.form_version_id
   LEFT JOIN checkbox_fields AS ch_fs USING (form_version_id, idx)
   LEFT JOIN radio_fields AS r_fs USING (form_version_id, idx)
   LEFT JOIN text_fields AS t_fs USING (form_version_id, idx)
 WHERE
-  forms.id = $1::bigint
+  fv.id = $1::bigint
 ORDER BY
   ffs.idx
 `
 
-type GetCurrentFormVersionRow struct {
-	ID              int64              `json:"id"`
-	FormVersionID   int64              `json:"form_version_id"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	Ftype           FieldType          `json:"ftype"`
-	Prompt          string             `json:"prompt"`
-	Required        bool               `json:"required"`
-	CheckboxOptions []string           `json:"checkbox_options"`
-	RadioOptions    []string           `json:"radio_options"`
-	TextParagraph   *bool              `json:"text_paragraph"`
+type GetFormFieldsRow struct {
+	Ftype           FieldType `json:"ftype"`
+	Prompt          string    `json:"prompt"`
+	Required        bool      `json:"required"`
+	CheckboxOptions []string  `json:"checkbox_options"`
+	RadioOptions    []string  `json:"radio_options"`
+	TextParagraph   *bool     `json:"text_paragraph"`
 }
 
-func (q *Queries) GetCurrentFormVersion(ctx context.Context, formID int64) ([]*GetCurrentFormVersionRow, error) {
-	rows, err := q.db.Query(ctx, getCurrentFormVersion, formID)
+func (q *Queries) GetFormFields(ctx context.Context, formVersionID int64) ([]*GetFormFieldsRow, error) {
+	rows, err := q.db.Query(ctx, getFormFields, formVersionID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetCurrentFormVersionRow
+	var items []*GetFormFieldsRow
 	for rows.Next() {
-		var i GetCurrentFormVersionRow
+		var i GetFormFieldsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.FormVersionID,
-			&i.CreatedAt,
 			&i.Ftype,
 			&i.Prompt,
 			&i.Required,
