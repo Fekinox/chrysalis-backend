@@ -125,21 +125,39 @@ func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
+// Reads the session key cookie from the client and adds it to the context
 func SessionKey(sm session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionKey, err := c.Request.Cookie("chrysalis-session-key")
 		if err != nil {
-			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
+			c.Next()
 			return
 		}
 		sessionData, err := sm.GetSessionData(sessionKey.Value)
 		if err != nil {
-			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
+			c.Next()
 			return
 		}
 
 		c.Set("sessionKey", sessionKey.Value)
 		c.Set("sessionData", sessionData)
+
+		c.Next()
+	}
+}
+
+func GetTypedValue[T any](c *gin.Context, key any) (T, bool) {
+	v, ok := c.Value(key).(T)
+	return v, ok
+}
+
+func HasSessionKey(sm session.Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		_, ok := GetTypedValue[*session.SessionData](c, "sessionData")
+		if !ok {
+			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
+			return
+		}
 
 		c.Next()
 	}
