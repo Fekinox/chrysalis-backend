@@ -15,6 +15,35 @@ INSERT INTO form_versions (
 )
 RETURNING *;
 
+-- name: GetUserFormHeaders :many
+SELECT
+    forms.id,
+    forms.slug,
+    forms.creator_id,
+    fv.name,
+    fv.description,
+    forms.created_at,
+    fv.created_at AS updated_at
+FROM
+    forms
+    INNER JOIN current_form_versions AS cfv ON cfv.form_id = forms.id
+    INNER JOIN form_versions AS fv ON cfv.form_version_id = fv.id
+WHERE
+    forms.creator_id = sqlc.arg('creator_id')
+ORDER BY updated_at DESC;
+
+
+-- name: GetFormHeaderBySlug :one
+SELECT
+    forms.id,
+    forms.slug,
+    forms.creator_id
+FROM
+    forms
+WHERE
+    forms.slug = sqlc.arg('slug') AND 
+    forms.creator_id = sqlc.arg('creator_id');
+
 -- name: NumTasksOnVersion :one
 SELECT
   COUNT(filled_forms.task_id)
@@ -29,7 +58,7 @@ INSERT INTO current_form_versions (form_id, form_version_id)
   VALUES (sqlc.arg ('form_id'), sqlc.arg ('form_version_id'))
 ON CONFLICT (form_id)
   DO UPDATE SET
-    form_version_id = EXCLUDED.form_id
+    form_version_id = EXCLUDED.form_version_id
   RETURNING form_id, form_version_id;
 
 -- name: AddFormFieldToForm :one
@@ -102,7 +131,8 @@ SELECT
   fv.id AS form_version_id,
   fv.name,
   fv.description,
-  fv.created_at
+  forms.created_at,
+  fv.created_at AS updated_at
 FROM
   forms
   INNER JOIN current_form_versions AS cfv ON forms.id = cfv.form_id
@@ -129,3 +159,6 @@ WHERE
   fv.id = sqlc.arg ('form_version_id')::bigint
 ORDER BY
   ffs.idx;
+
+-- name: DeleteForm :exec
+DELETE FROM forms WHERE forms.slug = $1 AND forms.creator_id = $2;

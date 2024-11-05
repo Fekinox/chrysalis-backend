@@ -149,7 +149,7 @@ INSERT INTO current_form_versions (form_id, form_version_id)
   VALUES ($1, $2)
 ON CONFLICT (form_id)
   DO UPDATE SET
-    form_version_id = EXCLUDED.form_id
+    form_version_id = EXCLUDED.form_version_id
   RETURNING form_id, form_version_id
 `
 
@@ -176,9 +176,15 @@ type CreateFormParams struct {
 	Slug      string    `json:"slug"`
 }
 
-func (q *Queries) CreateForm(ctx context.Context, arg CreateFormParams) (*Form, error) {
+type CreateFormRow struct {
+	ID        int64     `json:"id"`
+	CreatorID uuid.UUID `json:"creator_id"`
+	Slug      string    `json:"slug"`
+}
+
+func (q *Queries) CreateForm(ctx context.Context, arg CreateFormParams) (*CreateFormRow, error) {
 	row := q.db.QueryRow(ctx, createForm, arg.CreatorID, arg.Slug)
-	var i Form
+	var i CreateFormRow
 	err := row.Scan(&i.ID, &i.CreatorID, &i.Slug)
 	return &i, err
 }
@@ -215,6 +221,20 @@ func (q *Queries) CreateFormVersion(ctx context.Context, arg CreateFormVersionPa
 	return &i, err
 }
 
+const deleteForm = `-- name: DeleteForm :exec
+DELETE FROM forms WHERE forms.slug = $1 AND forms.creator_id = $2
+`
+
+type DeleteFormParams struct {
+	Slug      string    `json:"slug"`
+	CreatorID uuid.UUID `json:"creator_id"`
+}
+
+func (q *Queries) DeleteForm(ctx context.Context, arg DeleteFormParams) error {
+	_, err := q.db.Exec(ctx, deleteForm, arg.Slug, arg.CreatorID)
+	return err
+}
+
 const getCurrentFormVersionBySlug = `-- name: GetCurrentFormVersionBySlug :one
 SELECT
   forms.id,
@@ -223,7 +243,8 @@ SELECT
   fv.id AS form_version_id,
   fv.name,
   fv.description,
-  fv.created_at
+  forms.created_at,
+  fv.created_at AS updated_at
 FROM
   forms
   INNER JOIN current_form_versions AS cfv ON forms.id = cfv.form_id
@@ -246,6 +267,7 @@ type GetCurrentFormVersionBySlugRow struct {
 	Name          string             `json:"name"`
 	Description   string             `json:"description"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetCurrentFormVersionBySlug(ctx context.Context, arg GetCurrentFormVersionBySlugParams) (*GetCurrentFormVersionBySlugRow, error) {
@@ -259,6 +281,7 @@ func (q *Queries) GetCurrentFormVersionBySlug(ctx context.Context, arg GetCurren
 		&i.Name,
 		&i.Description,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return &i, err
 }
@@ -308,6 +331,92 @@ func (q *Queries) GetFormFields(ctx context.Context, formVersionID int64) ([]*Ge
 			&i.CheckboxOptions,
 			&i.RadioOptions,
 			&i.TextParagraph,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFormHeaderBySlug = `-- name: GetFormHeaderBySlug :one
+SELECT
+    forms.id,
+    forms.slug,
+    forms.creator_id
+FROM
+    forms
+WHERE
+    forms.slug = $1 AND 
+    forms.creator_id = $2
+`
+
+type GetFormHeaderBySlugParams struct {
+	Slug      string    `json:"slug"`
+	CreatorID uuid.UUID `json:"creator_id"`
+}
+
+type GetFormHeaderBySlugRow struct {
+	ID        int64     `json:"id"`
+	Slug      string    `json:"slug"`
+	CreatorID uuid.UUID `json:"creator_id"`
+}
+
+func (q *Queries) GetFormHeaderBySlug(ctx context.Context, arg GetFormHeaderBySlugParams) (*GetFormHeaderBySlugRow, error) {
+	row := q.db.QueryRow(ctx, getFormHeaderBySlug, arg.Slug, arg.CreatorID)
+	var i GetFormHeaderBySlugRow
+	err := row.Scan(&i.ID, &i.Slug, &i.CreatorID)
+	return &i, err
+}
+
+const getUserFormHeaders = `-- name: GetUserFormHeaders :many
+SELECT
+    forms.id,
+    forms.slug,
+    forms.creator_id,
+    fv.name,
+    fv.description,
+    forms.created_at,
+    fv.created_at AS updated_at
+FROM
+    forms
+    INNER JOIN current_form_versions AS cfv ON cfv.form_id = forms.id
+    INNER JOIN form_versions AS fv ON cfv.form_version_id = fv.id
+WHERE
+    forms.creator_id = $1
+ORDER BY updated_at DESC
+`
+
+type GetUserFormHeadersRow struct {
+	ID          int64              `json:"id"`
+	Slug        string             `json:"slug"`
+	CreatorID   uuid.UUID          `json:"creator_id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetUserFormHeaders(ctx context.Context, creatorID uuid.UUID) ([]*GetUserFormHeadersRow, error) {
+	rows, err := q.db.Query(ctx, getUserFormHeaders, creatorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetUserFormHeadersRow
+	for rows.Next() {
+		var i GetUserFormHeadersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.CreatorID,
+			&i.Name,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

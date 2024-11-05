@@ -21,16 +21,19 @@ type Querier interface {
 	AddTextFieldToForm(ctx context.Context, arg AddTextFieldToFormParams) (*TextField, error)
 	AddTextFieldToTask(ctx context.Context, arg AddTextFieldToTaskParams) (*FilledTextField, error)
 	AssignCurrentFormVersion(ctx context.Context, arg AssignCurrentFormVersionParams) (*CurrentFormVersion, error)
-	CreateForm(ctx context.Context, arg CreateFormParams) (*Form, error)
+	CreateForm(ctx context.Context, arg CreateFormParams) (*CreateFormRow, error)
 	CreateFormVersion(ctx context.Context, arg CreateFormVersionParams) (*FormVersion, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (*CreateTaskRow, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
+	DeleteForm(ctx context.Context, arg DeleteFormParams) error
 	GetClientTasks(ctx context.Context, clientID uuid.UUID) ([]*GetClientTasksRow, error)
 	GetCurrentFormVersionBySlug(ctx context.Context, arg GetCurrentFormVersionBySlugParams) (*GetCurrentFormVersionBySlugRow, error)
 	GetFormFields(ctx context.Context, formVersionID int64) ([]*GetFormFieldsRow, error)
+	GetFormHeaderBySlug(ctx context.Context, arg GetFormHeaderBySlugParams) (*GetFormHeaderBySlugRow, error)
 	GetServiceTasks(ctx context.Context, formID int64) ([]*GetServiceTasksRow, error)
 	GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
+	GetUserFormHeaders(ctx context.Context, creatorID uuid.UUID) ([]*GetUserFormHeadersRow, error)
 	NumTasksOnVersion(ctx context.Context, formVersionID int64) (int64, error)
 }
 
