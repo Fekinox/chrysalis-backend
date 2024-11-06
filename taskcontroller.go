@@ -227,12 +227,15 @@ func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
 	serviceSlug := c.Param("servicename")
 	taskSlug := c.Param("taskslug")
 
-	n, err := qtx.UpdateTaskStatus(c.Request.Context(), db.UpdateTaskStatusParams{
-		Status: db.TaskStatus(c.Query("status")),
-		Creator: serviceCreator,
-		FormSlug: serviceSlug,
-		TaskSlug: taskSlug,
-	})
+	n, err := qtx.UpdateTaskStatus(
+		c.Request.Context(),
+		db.UpdateTaskStatusParams{
+			Status:   db.TaskStatus(c.Query("status")),
+			Creator:  serviceCreator,
+			FormSlug: serviceSlug,
+			TaskSlug: taskSlug,
+		},
+	)
 	fmt.Println(n)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
