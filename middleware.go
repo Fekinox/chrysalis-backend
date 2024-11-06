@@ -146,14 +146,21 @@ func SessionKey(sm session.Manager) gin.HandlerFunc {
 	}
 }
 
-func GetTypedValue[T any](c *gin.Context, key any) (T, bool) {
-	v, ok := c.Value(key).(T)
-	return v, ok
+func contextGetter[T any](key any) func(c *gin.Context) (T, bool) {
+	return func(c *gin.Context) (T, bool) {
+		v, ok := c.Value(key).(T)
+		return v, ok
+	}
 }
+
+var (
+	GetSessionData = contextGetter[*session.SessionData]("sessionData")
+	GetSessionKey  = contextGetter[string]("sessionKey")
+)
 
 func HasSessionKey(sm session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, ok := GetTypedValue[*session.SessionData](c, "sessionData")
+		_, ok := GetSessionData(c)
 		if !ok {
 			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
 			return

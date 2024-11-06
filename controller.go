@@ -67,11 +67,12 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 func (dc *ChrysalisController) MountHandlers() {
 	api := dc.router.Group("/api")
 	api.Use(ErrorHandler(&dc.cfg))
+	api.Use(SessionKey(dc.sessionManager))
 
 	auth := api.Group("/auth")
 	auth.POST("/login", dc.Login)
 	auth.POST("/register", dc.Register)
-	auth.POST("/logout", SessionKey(dc.sessionManager), dc.Logout)
+	auth.POST("/logout", HasSessionKey(dc.sessionManager), dc.Logout)
 
 	users := api.Group("/users")
 	// Get all services a user owns
@@ -79,13 +80,13 @@ func (dc *ChrysalisController) MountHandlers() {
 	users.GET("/:username/services/:servicename", dc.GetServiceBySlug)
 
 	users.POST("/:username/services",
-		SessionKey(dc.sessionManager),
+		HasSessionKey(dc.sessionManager),
 		dc.CreateService)
 	users.PUT("/:username/services/:servicename",
-		SessionKey(dc.sessionManager),
+		HasSessionKey(dc.sessionManager),
 		dc.UpdateService)
 	users.DELETE("/:username/services/:servicename",
-		SessionKey(dc.sessionManager),
+		HasSessionKey(dc.sessionManager),
 		dc.DeleteService)
 
 	// Get outbound and inbound tasks for a user
@@ -118,11 +119,13 @@ func (dc *ChrysalisController) Close() error {
 }
 
 func (dc *ChrysalisController) DummyHandler(c *gin.Context) {
+	sessionKey, _ := GetSessionKey(c)
+	sessionData, _ := GetSessionData(c)
 	c.JSON(http.StatusOK, gin.H{
 		"method":      c.Request.Method,
 		"url":         c.Request.URL.RequestURI(),
-		"sessionKey":  c.Value("sessionKey"),
-		"sessionData": c.Value("sessionData"),
+		"sessionKey":  sessionKey,
+		"sessionData": sessionData,
 	})
 }
 
@@ -390,7 +393,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 		c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
-	sessionData := c.Value("sessionData").(*session.SessionData)
+	sessionData, _ := GetSessionData(c)
 
 	var spec NewServiceSpec
 	err = c.BindJSON(&spec)
@@ -558,7 +561,7 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 		c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
-	sessionData := c.Value("sessionData").(*session.SessionData)
+	sessionData, _ := GetSessionData(c)
 
 	var spec UpdateServiceSpec
 	err = c.BindJSON(&spec)
@@ -700,7 +703,7 @@ func (dc *ChrysalisController) DeleteService(c *gin.Context) {
 		c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
-	sessionData := c.Value("sessionData").(*session.SessionData)
+	sessionData, _ := GetSessionData(c)
 
 	if username == "" || slug == "" {
 		c.AbortWithError(
@@ -723,10 +726,10 @@ func (dc *ChrysalisController) DeleteService(c *gin.Context) {
 }
 
 func (dc *ChrysalisController) IsUser(c *gin.Context, user string) bool {
-	if user == "" || c.Value("sessionKey") == "" {
+	if user == "" {
 		return false
 	}
-	data, ok := c.Value("sessionData").(*session.SessionData)
+	data, ok := GetSessionData(c)
 	if !ok {
 		return false
 	}
