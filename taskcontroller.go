@@ -215,5 +215,39 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 
 // Update the status of a task as the owner of a service
 func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
-	dc.DummyHandler(c)
+	tx, err := dc.conn.Begin(c.Request.Context())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+	qtx := dc.db.WithTx(tx)
+
+	serviceCreator := c.Param("username")
+	serviceSlug := c.Param("servicename")
+	taskSlug := c.Param("taskslug")
+
+	n, err := qtx.UpdateTaskStatus(c.Request.Context(), db.UpdateTaskStatusParams{
+		Status: db.TaskStatus(c.Query("status")),
+		Creator: serviceCreator,
+		FormSlug: serviceSlug,
+		TaskSlug: taskSlug,
+	})
+	fmt.Println(n)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	} else if len(n) == 0 {
+		c.AbortWithError(http.StatusNotFound, ErrNotFound(serviceCreator))
+		return
+	}
+
+	c.Redirect(http.StatusSeeOther,
+		fmt.Sprintf(
+			"/api/users/%s/services/%s/tasks/%s",
+			serviceCreator,
+			serviceSlug,
+			taskSlug,
+		),
+	)
 }

@@ -140,3 +140,18 @@ INSERT INTO filled_text_fields (
     task_id,
     idx,
     content;
+
+-- name: UpdateTaskStatus :many
+UPDATE tasks
+    SET status = $1
+    FROM
+        form_versions
+        JOIN forms ON form_versions.form_id = forms.id
+        JOIN users AS creator ON forms.creator_id = creator.id
+    WHERE
+        form_versions.id = tasks.form_version_id AND
+        creator.username = sqlc.arg('creator') AND
+        forms.slug = sqlc.arg('form_slug') AND
+        tasks.slug = sqlc.arg('task_slug')
+    RETURNING
+        1;

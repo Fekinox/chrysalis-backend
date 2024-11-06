@@ -47,6 +47,8 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 		engine = gin.Default()
 	}
 
+	fmt.Println(cfg.GetDBUrl())
+
 	conn, err := pgx.Connect(context.Background(), cfg.GetDBUrl())
 	if err != nil {
 		return nil, err

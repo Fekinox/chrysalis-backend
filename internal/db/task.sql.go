@@ -419,3 +419,51 @@ func (q *Queries) GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*
 	)
 	return &i, err
 }
+
+const updateTaskStatus = `-- name: UpdateTaskStatus :many
+UPDATE tasks
+    SET status = $1
+    FROM
+        form_versions
+        JOIN forms ON form_versions.form_id = forms.id
+        JOIN users AS creator ON forms.creator_id = creator.id
+    WHERE
+        form_versions.id = tasks.form_version_id AND
+        creator.username = $2 AND
+        forms.slug = $3 AND
+        tasks.slug = $4
+    RETURNING
+        1
+`
+
+type UpdateTaskStatusParams struct {
+	Status   TaskStatus `json:"status"`
+	Creator  string     `json:"creator"`
+	FormSlug string     `json:"form_slug"`
+	TaskSlug string     `json:"task_slug"`
+}
+
+func (q *Queries) UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) ([]int32, error) {
+	rows, err := q.db.Query(ctx, updateTaskStatus,
+		arg.Status,
+		arg.Creator,
+		arg.FormSlug,
+		arg.TaskSlug,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var column_1 int32
+		if err := rows.Scan(&column_1); err != nil {
+			return nil, err
+		}
+		items = append(items, column_1)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -36,6 +36,7 @@ type Querier interface {
 	GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	GetUserFormHeaders(ctx context.Context, creatorID uuid.UUID) ([]*GetUserFormHeadersRow, error)
+	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) ([]int32, error)
 }
 
 var _ Querier = (*Queries)(nil)
