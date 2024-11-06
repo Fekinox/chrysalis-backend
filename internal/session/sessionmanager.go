@@ -1,11 +1,11 @@
 package session
 
 import (
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/Fekinox/chrysalis-backend/internal/genbytes"
 	"github.com/google/uuid"
 )
 
@@ -35,18 +35,8 @@ type Manager interface {
 	EndSession(key string) error
 }
 
-func genRandomBytes(n uint32) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
 func GenerateSessionKey() (string, error) {
-	randomBytes, err := genRandomBytes(SESSION_KEY_LENGTH_BYTES)
+	randomBytes, err := genbytes.GenRandomBytes(SESSION_KEY_LENGTH_BYTES)
 	if err != nil {
 		return "", err
 	}

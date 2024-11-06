@@ -64,48 +64,6 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 	}, nil
 }
 
-func (dc *ChrysalisController) MountHandlers() {
-	api := dc.router.Group("/api")
-	api.Use(ErrorHandler(&dc.cfg))
-	api.Use(SessionKey(dc.sessionManager))
-
-	auth := api.Group("/auth")
-	auth.POST("/login", dc.Login)
-	auth.POST("/register", dc.Register)
-	auth.POST("/logout", HasSessionKey(dc.sessionManager), dc.Logout)
-
-	users := api.Group("/users")
-	// Get all services a user owns
-	users.GET("/:username/services", dc.GetUserServices)
-	users.GET("/:username/services/:servicename", dc.GetServiceBySlug)
-
-	users.POST("/:username/services",
-		HasSessionKey(dc.sessionManager),
-		dc.CreateService)
-	users.PUT("/:username/services/:servicename",
-		HasSessionKey(dc.sessionManager),
-		dc.UpdateService)
-	users.DELETE("/:username/services/:servicename",
-		HasSessionKey(dc.sessionManager),
-		dc.DeleteService)
-
-	// Get outbound and inbound tasks for a user
-	users.GET("/:username/outbound-tasks", dc.DummyHandler)
-	users.GET("/:username/inbound-tasks", dc.DummyHandler)
-
-	// Tasks associated with a particular service
-	users.GET("/:username/services/:servicename/tasks", dc.DummyHandler)
-	users.GET(
-		"/:username/services/:servicename/tasks/:taskslug",
-		dc.DummyHandler,
-	)
-	users.POST("/:username/services/:servicename/tasks", dc.DummyHandler)
-	users.PUT(
-		"/:username/services/:servicename/tasks/:taskslug",
-		dc.DummyHandler,
-	)
-}
-
 func (dc *ChrysalisController) Start(addr string) error {
 	return dc.router.Run(addr)
 }
@@ -116,6 +74,17 @@ func (dc *ChrysalisController) Router() *gin.Engine {
 
 func (dc *ChrysalisController) Close() error {
 	return dc.conn.Close(context.Background())
+}
+
+func (dc *ChrysalisController) IsUser(c *gin.Context, user string) bool {
+	if user == "" {
+		return false
+	}
+	data, ok := GetSessionData(c)
+	if !ok {
+		return false
+	}
+	return data.Username == user
 }
 
 func (dc *ChrysalisController) DummyHandler(c *gin.Context) {
@@ -723,15 +692,4 @@ func (dc *ChrysalisController) DeleteService(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
-}
-
-func (dc *ChrysalisController) IsUser(c *gin.Context, user string) bool {
-	if user == "" {
-		return false
-	}
-	data, ok := GetSessionData(c)
-	if !ok {
-		return false
-	}
-	return data.Username == user
 }

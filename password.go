@@ -1,13 +1,13 @@
 package main
 
 import (
-	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/Fekinox/chrysalis-backend/internal/genbytes"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -32,18 +32,8 @@ func DefaultParams() *PasswordParams {
 	}
 }
 
-func genRandomBytes(n uint32) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
 func HashPassword(password string, p *PasswordParams) (string, error) {
-	salt, err := genRandomBytes(p.SaltLength)
+	salt, err := genbytes.GenRandomBytes(p.SaltLength)
 	if err != nil {
 		return "", err
 	}

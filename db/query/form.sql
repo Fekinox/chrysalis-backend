@@ -44,15 +44,6 @@ WHERE
     forms.slug = sqlc.arg('slug') AND 
     forms.creator_id = sqlc.arg('creator_id');
 
--- name: NumTasksOnVersion :one
-SELECT
-  COUNT(filled_forms.task_id)
-FROM
-  form_versions
-  INNER JOIN filled_forms ON form_versions.id = filled_forms.form_version_id
-WHERE
-  form_versions.id = sqlc.arg ('form_version_id');
-
 -- name: AssignCurrentFormVersion :one
 INSERT INTO current_form_versions (form_id, form_version_id)
   VALUES (sqlc.arg ('form_id'), sqlc.arg ('form_version_id'))

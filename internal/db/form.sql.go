@@ -427,20 +427,3 @@ func (q *Queries) GetUserFormHeaders(ctx context.Context, creatorID uuid.UUID) (
 	}
 	return items, nil
 }
-
-const numTasksOnVersion = `-- name: NumTasksOnVersion :one
-SELECT
-  COUNT(filled_forms.task_id)
-FROM
-  form_versions
-  INNER JOIN filled_forms ON form_versions.id = filled_forms.form_version_id
-WHERE
-  form_versions.id = $1
-`
-
-func (q *Queries) NumTasksOnVersion(ctx context.Context, formVersionID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, numTasksOnVersion, formVersionID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}

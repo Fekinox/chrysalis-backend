@@ -118,11 +118,6 @@ type FilledCheckboxField struct {
 	SelectedOptions []string `json:"selected_options"`
 }
 
-type FilledForm struct {
-	TaskID        int64  `json:"task_id"`
-	FormVersionID *int64 `json:"form_version_id"`
-}
-
 type FilledFormField struct {
 	TaskID int64     `json:"task_id"`
 	Idx    int32     `json:"idx"`
@@ -172,11 +167,12 @@ type RadioField struct {
 }
 
 type Task struct {
-	ID        int64              `json:"id"`
-	ClientID  uuid.UUID          `json:"client_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Status    TaskStatus         `json:"status"`
-	Slug      string             `json:"slug"`
+	ID            int64              `json:"id"`
+	ClientID      uuid.UUID          `json:"client_id"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	Status        TaskStatus         `json:"status"`
+	Slug          string             `json:"slug"`
+	FormVersionID int64              `json:"form_version_id"`
 }
 
 type TextField struct {

@@ -77,30 +77,6 @@ func (q *Queries) AddFilledFieldToTask(ctx context.Context, arg AddFilledFieldTo
 	return &i, err
 }
 
-const addFormToTask = `-- name: AddFormToTask :one
-INSERT INTO filled_forms (
-    task_id,
-    form_version_id
-) VALUES (
-    $1,
-    $2
-) RETURNING
-    task_id,
-    form_version_id
-`
-
-type AddFormToTaskParams struct {
-	TaskID        int64  `json:"task_id"`
-	FormVersionID *int64 `json:"form_version_id"`
-}
-
-func (q *Queries) AddFormToTask(ctx context.Context, arg AddFormToTaskParams) (*FilledForm, error) {
-	row := q.db.QueryRow(ctx, addFormToTask, arg.TaskID, arg.FormVersionID)
-	var i FilledForm
-	err := row.Scan(&i.TaskID, &i.FormVersionID)
-	return &i, err
-}
-
 const addRadioFieldToTask = `-- name: AddRadioFieldToTask :one
 INSERT INTO filled_radio_fields (
     task_id,
@@ -155,38 +131,42 @@ func (q *Queries) AddTextFieldToTask(ctx context.Context, arg AddTextFieldToTask
 
 const createTask = `-- name: CreateTask :one
 INSERT INTO tasks (
+    form_version_id,
     client_id,
     slug
 ) VALUES (
-    $1,
-    $2
+    $1, $2, $3
 ) RETURNING
     id,
     client_id,
+    form_version_id,
     status,
     slug,
     created_at
 `
 
 type CreateTaskParams struct {
-	ClientID uuid.UUID `json:"client_id"`
-	Slug     string    `json:"slug"`
+	FormVersionID int64     `json:"form_version_id"`
+	ClientID      uuid.UUID `json:"client_id"`
+	Slug          string    `json:"slug"`
 }
 
 type CreateTaskRow struct {
-	ID        int64              `json:"id"`
-	ClientID  uuid.UUID          `json:"client_id"`
-	Status    TaskStatus         `json:"status"`
-	Slug      string             `json:"slug"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID            int64              `json:"id"`
+	ClientID      uuid.UUID          `json:"client_id"`
+	FormVersionID int64              `json:"form_version_id"`
+	Status        TaskStatus         `json:"status"`
+	Slug          string             `json:"slug"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (*CreateTaskRow, error) {
-	row := q.db.QueryRow(ctx, createTask, arg.ClientID, arg.Slug)
+	row := q.db.QueryRow(ctx, createTask, arg.FormVersionID, arg.ClientID, arg.Slug)
 	var i CreateTaskRow
 	err := row.Scan(
 		&i.ID,
 		&i.ClientID,
+		&i.FormVersionID,
 		&i.Status,
 		&i.Slug,
 		&i.CreatedAt,
@@ -194,41 +174,59 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (*Create
 	return &i, err
 }
 
-const getClientTasks = `-- name: GetClientTasks :many
+const getInboundTasks = `-- name: GetInboundTasks :many
 SELECT
-    id,
-    client_id,
+    forms.id AS form_id,
+    creator.username,
+    tasks.form_version_id,
+    form_versions.name,
+    forms.slug AS form_slug,
+    tasks.id AS task_id,
+    tasks.client_id,
     status,
-    slug,
-    created_at
+    tasks.slug AS task_slug,
+    tasks.created_at
 FROM
     tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users AS creator ON forms.creator_id = creator.id
 WHERE
-    client_id = $1
+    creator.username = $1
 `
 
-type GetClientTasksRow struct {
-	ID        int64              `json:"id"`
-	ClientID  uuid.UUID          `json:"client_id"`
-	Status    TaskStatus         `json:"status"`
-	Slug      string             `json:"slug"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+type GetInboundTasksRow struct {
+	FormID        int64              `json:"form_id"`
+	Username      string             `json:"username"`
+	FormVersionID int64              `json:"form_version_id"`
+	Name          string             `json:"name"`
+	FormSlug      string             `json:"form_slug"`
+	TaskID        int64              `json:"task_id"`
+	ClientID      uuid.UUID          `json:"client_id"`
+	Status        TaskStatus         `json:"status"`
+	TaskSlug      string             `json:"task_slug"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
-func (q *Queries) GetClientTasks(ctx context.Context, clientID uuid.UUID) ([]*GetClientTasksRow, error) {
-	rows, err := q.db.Query(ctx, getClientTasks, clientID)
+func (q *Queries) GetInboundTasks(ctx context.Context, creatorUsername string) ([]*GetInboundTasksRow, error) {
+	rows, err := q.db.Query(ctx, getInboundTasks, creatorUsername)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetClientTasksRow
+	var items []*GetInboundTasksRow
 	for rows.Next() {
-		var i GetClientTasksRow
+		var i GetInboundTasksRow
 		if err := rows.Scan(
-			&i.ID,
+			&i.FormID,
+			&i.Username,
+			&i.FormVersionID,
+			&i.Name,
+			&i.FormSlug,
+			&i.TaskID,
 			&i.ClientID,
 			&i.Status,
-			&i.Slug,
+			&i.TaskSlug,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -241,8 +239,75 @@ func (q *Queries) GetClientTasks(ctx context.Context, clientID uuid.UUID) ([]*Ge
 	return items, nil
 }
 
-const getServiceTasks = `-- name: GetServiceTasks :many
+const getOutboundTasks = `-- name: GetOutboundTasks :many
 SELECT
+    forms.id AS form_id,
+    forms.creator_id,
+    tasks.form_version_id,
+    form_versions.name,
+    forms.slug AS form_slug,
+    tasks.id AS task_id,
+    tasks.client_id,
+    status,
+    tasks.slug AS task_slug,
+    tasks.created_at
+FROM
+    tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users AS client ON tasks.client_id = client.id
+    INNER JOIN users AS creator ON forms.creator_id = creator.id
+WHERE
+    client.username = $1
+`
+
+type GetOutboundTasksRow struct {
+	FormID        int64              `json:"form_id"`
+	CreatorID     uuid.UUID          `json:"creator_id"`
+	FormVersionID int64              `json:"form_version_id"`
+	Name          string             `json:"name"`
+	FormSlug      string             `json:"form_slug"`
+	TaskID        int64              `json:"task_id"`
+	ClientID      uuid.UUID          `json:"client_id"`
+	Status        TaskStatus         `json:"status"`
+	TaskSlug      string             `json:"task_slug"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetOutboundTasks(ctx context.Context, clientUsername string) ([]*GetOutboundTasksRow, error) {
+	rows, err := q.db.Query(ctx, getOutboundTasks, clientUsername)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetOutboundTasksRow
+	for rows.Next() {
+		var i GetOutboundTasksRow
+		if err := rows.Scan(
+			&i.FormID,
+			&i.CreatorID,
+			&i.FormVersionID,
+			&i.Name,
+			&i.FormSlug,
+			&i.TaskID,
+			&i.ClientID,
+			&i.Status,
+			&i.TaskSlug,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getServiceTasksBySlug = `-- name: GetServiceTasksBySlug :many
+SELECT
+    tasks.form_version_id,
     tasks.id,
     tasks.client_id,
     status,
@@ -250,30 +315,39 @@ SELECT
     tasks.created_at
 FROM
     tasks
-    INNER JOIN filled_forms ON filled_forms.task_id = tasks.id
-    INNER JOIN form_versions ON filled_forms.form_version_id = form_versions.id
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users ON forms.creator_id = users.id
 WHERE
-    form_versions.form_id = $1
+    forms.slug = $1 AND
+    users.username = $2
 `
 
-type GetServiceTasksRow struct {
-	ID        int64              `json:"id"`
-	ClientID  uuid.UUID          `json:"client_id"`
-	Status    TaskStatus         `json:"status"`
-	Slug      string             `json:"slug"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+type GetServiceTasksBySlugParams struct {
+	FormSlug        string `json:"form_slug"`
+	CreatorUsername string `json:"creator_username"`
 }
 
-func (q *Queries) GetServiceTasks(ctx context.Context, formID int64) ([]*GetServiceTasksRow, error) {
-	rows, err := q.db.Query(ctx, getServiceTasks, formID)
+type GetServiceTasksBySlugRow struct {
+	FormVersionID int64              `json:"form_version_id"`
+	ID            int64              `json:"id"`
+	ClientID      uuid.UUID          `json:"client_id"`
+	Status        TaskStatus         `json:"status"`
+	Slug          string             `json:"slug"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasksBySlugParams) ([]*GetServiceTasksBySlugRow, error) {
+	rows, err := q.db.Query(ctx, getServiceTasksBySlug, arg.FormSlug, arg.CreatorUsername)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetServiceTasksRow
+	var items []*GetServiceTasksBySlugRow
 	for rows.Next() {
-		var i GetServiceTasksRow
+		var i GetServiceTasksBySlugRow
 		if err := rows.Scan(
+			&i.FormVersionID,
 			&i.ID,
 			&i.ClientID,
 			&i.Status,
@@ -288,4 +362,60 @@ func (q *Queries) GetServiceTasks(ctx context.Context, formID int64) ([]*GetServ
 		return nil, err
 	}
 	return items, nil
+}
+
+const getTaskFields = `-- name: GetTaskFields :one
+SELECT 1 FROM tasks
+`
+
+func (q *Queries) GetTaskFields(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, getTaskFields)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const getTaskHeader = `-- name: GetTaskHeader :one
+SELECT
+    tasks.form_version_id,
+    tasks.id,
+    tasks.client_id,
+    status,
+    tasks.created_at
+FROM
+    tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users ON forms.creator_id = users.id
+WHERE
+    users.username = $1 AND
+    forms.slug = $2 AND
+    tasks.slug = $3
+`
+
+type GetTaskHeaderParams struct {
+	Username string `json:"username"`
+	FormSlug string `json:"form_slug"`
+	TaskSlug string `json:"task_slug"`
+}
+
+type GetTaskHeaderRow struct {
+	FormVersionID int64              `json:"form_version_id"`
+	ID            int64              `json:"id"`
+	ClientID      uuid.UUID          `json:"client_id"`
+	Status        TaskStatus         `json:"status"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*GetTaskHeaderRow, error) {
+	row := q.db.QueryRow(ctx, getTaskHeader, arg.Username, arg.FormSlug, arg.TaskSlug)
+	var i GetTaskHeaderRow
+	err := row.Scan(
+		&i.FormVersionID,
+		&i.ID,
+		&i.ClientID,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return &i, err
 }

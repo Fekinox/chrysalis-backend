@@ -1,42 +1,63 @@
 -- name: CreateTask :one
 INSERT INTO tasks (
+    form_version_id,
     client_id,
     slug
 ) VALUES (
-    sqlc.arg('client_id'),
-    sqlc.arg('slug')
+    $1, $2, $3
 ) RETURNING
     id,
     client_id,
+    form_version_id,
     status,
     slug,
     created_at;
 
--- name: AddFormToTask :one
-INSERT INTO filled_forms (
-    task_id,
-    form_version_id
-) VALUES (
-    sqlc.arg('task_id'),
-    sqlc.arg('form_version_id')
-) RETURNING
-    task_id,
-    form_version_id;
-
--- name: GetClientTasks :many
+-- name: GetOutboundTasks :many
 SELECT
-    id,
-    client_id,
+    forms.id AS form_id,
+    forms.creator_id,
+    tasks.form_version_id,
+    form_versions.name,
+    forms.slug AS form_slug,
+    tasks.id AS task_id,
+    tasks.client_id,
     status,
-    slug,
-    created_at
+    tasks.slug AS task_slug,
+    tasks.created_at
 FROM
     tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users AS client ON tasks.client_id = client.id
+    INNER JOIN users AS creator ON forms.creator_id = creator.id
 WHERE
-    client_id = sqlc.arg('client_id');
+    client.username = sqlc.arg('client_username');
 
--- name: GetServiceTasks :many
+-- name: GetInboundTasks :many
 SELECT
+    forms.id AS form_id,
+    creator.username,
+    tasks.form_version_id,
+    form_versions.name,
+    forms.slug AS form_slug,
+    tasks.id AS task_id,
+    tasks.client_id,
+    status,
+    tasks.slug AS task_slug,
+    tasks.created_at
+FROM
+    tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users AS creator ON forms.creator_id = creator.id
+WHERE
+    creator.username = sqlc.arg('creator_username');
+    
+
+-- name: GetServiceTasksBySlug :many
+SELECT
+    tasks.form_version_id,
     tasks.id,
     tasks.client_id,
     status,
@@ -44,10 +65,32 @@ SELECT
     tasks.created_at
 FROM
     tasks
-    INNER JOIN filled_forms ON filled_forms.task_id = tasks.id
-    INNER JOIN form_versions ON filled_forms.form_version_id = form_versions.id
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users ON forms.creator_id = users.id
 WHERE
-    form_versions.form_id = sqlc.arg('form_id');
+    forms.slug = sqlc.arg('form_slug') AND
+    users.username = sqlc.arg('creator_username');
+
+-- name: GetTaskHeader :one
+SELECT
+    tasks.form_version_id,
+    tasks.id,
+    tasks.client_id,
+    status,
+    tasks.created_at
+FROM
+    tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users ON forms.creator_id = users.id
+WHERE
+    users.username = $1 AND
+    forms.slug = sqlc.arg('form_slug') AND
+    tasks.slug = sqlc.arg('task_slug');
+
+-- name: GetTaskFields :one
+SELECT 1 FROM tasks;
 
 -- name: AddFilledFieldToTask :one
 INSERT INTO filled_form_fields (

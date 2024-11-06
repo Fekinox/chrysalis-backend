@@ -15,7 +15,6 @@ type Querier interface {
 	AddCheckboxFieldToTask(ctx context.Context, arg AddCheckboxFieldToTaskParams) (*FilledCheckboxField, error)
 	AddFilledFieldToTask(ctx context.Context, arg AddFilledFieldToTaskParams) (*FilledFormField, error)
 	AddFormFieldToForm(ctx context.Context, arg AddFormFieldToFormParams) (*FormField, error)
-	AddFormToTask(ctx context.Context, arg AddFormToTaskParams) (*FilledForm, error)
 	AddRadioFieldToForm(ctx context.Context, arg AddRadioFieldToFormParams) (*RadioField, error)
 	AddRadioFieldToTask(ctx context.Context, arg AddRadioFieldToTaskParams) (*FilledRadioField, error)
 	AddTextFieldToForm(ctx context.Context, arg AddTextFieldToFormParams) (*TextField, error)
@@ -26,15 +25,17 @@ type Querier interface {
 	CreateTask(ctx context.Context, arg CreateTaskParams) (*CreateTaskRow, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
 	DeleteForm(ctx context.Context, arg DeleteFormParams) error
-	GetClientTasks(ctx context.Context, clientID uuid.UUID) ([]*GetClientTasksRow, error)
 	GetCurrentFormVersionBySlug(ctx context.Context, arg GetCurrentFormVersionBySlugParams) (*GetCurrentFormVersionBySlugRow, error)
 	GetFormFields(ctx context.Context, formVersionID int64) ([]*GetFormFieldsRow, error)
 	GetFormHeaderBySlug(ctx context.Context, arg GetFormHeaderBySlugParams) (*GetFormHeaderBySlugRow, error)
-	GetServiceTasks(ctx context.Context, formID int64) ([]*GetServiceTasksRow, error)
+	GetInboundTasks(ctx context.Context, creatorUsername string) ([]*GetInboundTasksRow, error)
+	GetOutboundTasks(ctx context.Context, clientUsername string) ([]*GetOutboundTasksRow, error)
+	GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasksBySlugParams) ([]*GetServiceTasksBySlugRow, error)
+	GetTaskFields(ctx context.Context) (int32, error)
+	GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*GetTaskHeaderRow, error)
 	GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	GetUserFormHeaders(ctx context.Context, creatorID uuid.UUID) ([]*GetUserFormHeadersRow, error)
-	NumTasksOnVersion(ctx context.Context, formVersionID int64) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)
