@@ -3,7 +3,6 @@ package formfield
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 )
@@ -91,9 +90,6 @@ func (ff *FormField) UnmarshalJSON(data []byte) error {
 
 	switch ff.FieldType {
 	case db.FieldTypeCheckbox:
-		var test any
-		json.Unmarshal(p.PartialData, test)
-		fmt.Println(test)
 		d := new(CheckboxFieldData)
 		err = json.Unmarshal(p.PartialData, d)
 		if err != nil {
