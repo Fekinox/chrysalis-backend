@@ -174,6 +174,59 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (*Create
 	return &i, err
 }
 
+const getFilledFormFields = `-- name: GetFilledFormFields :many
+SELECT
+    ffs.ftype,
+    ffs.filled,
+    ch_fs.selected_options AS "checkbox_options",
+    r_fs.selected_option AS "radio_option",
+    t_fs.content AS "text_content"
+FROM
+    tasks AS tk
+    INNER JOIN filled_form_fields AS ffs ON tk.id = ffs.task_id
+    LEFT JOIN filled_checkbox_fields AS ch_fs USING (task_id, idx)
+    LEFT JOIN filled_radio_fields AS r_fs USING (task_id, idx)
+    LEFT JOIN filled_text_fields AS t_fs USING (task_id, idx)
+WHERE
+    tk.slug = $1
+ORDER BY
+    ffs.idx
+`
+
+type GetFilledFormFieldsRow struct {
+	Ftype           FieldType `json:"ftype"`
+	Filled          bool      `json:"filled"`
+	CheckboxOptions []string  `json:"checkbox_options"`
+	RadioOption     *string   `json:"radio_option"`
+	TextContent     *string   `json:"text_content"`
+}
+
+func (q *Queries) GetFilledFormFields(ctx context.Context, taskSlug string) ([]*GetFilledFormFieldsRow, error) {
+	rows, err := q.db.Query(ctx, getFilledFormFields, taskSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetFilledFormFieldsRow
+	for rows.Next() {
+		var i GetFilledFormFieldsRow
+		if err := rows.Scan(
+			&i.Ftype,
+			&i.Filled,
+			&i.CheckboxOptions,
+			&i.RadioOption,
+			&i.TextContent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getInboundTasks = `-- name: GetInboundTasks :many
 SELECT
     forms.id AS form_id,

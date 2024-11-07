@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
+	"github.com/Fekinox/chrysalis-backend/internal/formfield"
 	"github.com/Fekinox/chrysalis-backend/internal/genbytes"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -133,12 +134,31 @@ func (dc *ChrysalisController) GetDetailedTaskInformation(c *gin.Context) {
 		return
 	}
 
+	rawFields, err := qtx.GetFilledFormFields(c.Request.Context(), taskSlug)
+	if err != nil {
+		AbortError(c, http.StatusNotFound, errors.New("Fields not found"))
+		return
+	}
+
+	parsedFields := make([]formfield.FilledFormField, len(rawFields))
+
+	for i, f := range rawFields {
+		err = parsedFields[i].FromRow(f)
+		if err != nil {
+			AbortError(c, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
 	if err = tx.Commit(c.Request.Context()); err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, task)
+	c.JSON(http.StatusOK, gin.H{
+		"taskInfo": task,
+		"fields":   parsedFields,
+	})
 }
 
 // Create an outbound task on a specific service
@@ -242,19 +262,11 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 
 // Update the status of a task as the owner of a service
 func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
-	tx, err := dc.conn.Begin(c.Request.Context())
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	}
-	defer tx.Rollback(c.Request.Context())
-	qtx := dc.db.WithTx(tx)
-
 	serviceCreator := c.Param("username")
 	serviceSlug := c.Param("servicename")
 	taskSlug := c.Param("taskslug")
 
-	n, err := qtx.UpdateTaskStatus(
+	n, err := dc.db.UpdateTaskStatus(
 		c.Request.Context(),
 		db.UpdateTaskStatusParams{
 			Status:   db.TaskStatus(c.Query("status")),
@@ -268,11 +280,6 @@ func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
 		return
 	} else if len(n) == 0 {
 		AbortError(c, http.StatusNotFound, ErrNotFound(serviceCreator))
-		return
-	}
-
-	if err = tx.Commit(c.Request.Context()); err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 

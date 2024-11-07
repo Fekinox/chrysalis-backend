@@ -32,7 +32,38 @@ func (*FilledCheckboxFieldData) filledFormFieldData() {}
 func (*FilledRadioFieldData) filledFormFieldData()    {}
 func (*FilledTextFieldData) filledFormFieldData()     {}
 
-func (ff *FilledFormField) FromRow() error {
+func (ff *FilledFormField) FromRow(ffr *db.GetFilledFormFieldsRow) error {
+	ff.FieldType = ffr.Ftype
+	ff.Filled = ffr.Filled
+
+	if !ff.Filled {
+		return nil
+	}
+
+	switch ffr.Ftype {
+	case db.FieldTypeCheckbox:
+		if ffr.CheckboxOptions == nil {
+			return ErrInvalidFormFieldRow
+		}
+		ff.Data = &FilledCheckboxFieldData{
+			SelectedOptions: ffr.CheckboxOptions,
+		}
+	case db.FieldTypeRadio:
+		if ffr.RadioOption == nil {
+			return ErrInvalidFormFieldRow
+		}
+		ff.Data = &FilledRadioFieldData{
+			SelectedOption: *ffr.RadioOption,
+		}
+	case db.FieldTypeText:
+		if ffr.TextContent == nil {
+			return ErrInvalidFormFieldRow
+		}
+		ff.Data = &FilledTextFieldData{
+			Content: *ffr.TextContent,
+		}
+	}
+
 	return nil
 }
 

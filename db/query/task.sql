@@ -155,3 +155,21 @@ UPDATE tasks
         tasks.slug = sqlc.arg('task_slug')
     RETURNING
         1;
+
+-- name: GetFilledFormFields :many
+SELECT
+    ffs.ftype,
+    ffs.filled,
+    ch_fs.selected_options AS "checkbox_options",
+    r_fs.selected_option AS "radio_option",
+    t_fs.content AS "text_content"
+FROM
+    tasks AS tk
+    INNER JOIN filled_form_fields AS ffs ON tk.id = ffs.task_id
+    LEFT JOIN filled_checkbox_fields AS ch_fs USING (task_id, idx)
+    LEFT JOIN filled_radio_fields AS r_fs USING (task_id, idx)
+    LEFT JOIN filled_text_fields AS t_fs USING (task_id, idx)
+WHERE
+    tk.slug = sqlc.arg ('task_slug')
+ORDER BY
+    ffs.idx;
