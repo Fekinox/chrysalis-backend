@@ -103,7 +103,7 @@ func (dc *ChrysalisController) DummyHandler(c *gin.Context) {
 func (dc *ChrysalisController) Login(c *gin.Context) {
 	var loginSchema LoginSchema
 	if err := c.ShouldBind(&loginSchema); err != nil {
-		c.AbortWithError(http.StatusBadRequest, ErrBadRequest)
+		AbortError(c, http.StatusBadRequest, ErrBadRequest)
 		return
 	}
 
@@ -113,24 +113,24 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 		loginSchema.Username,
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, ErrLoginFailed)
+		AbortError(c, http.StatusBadRequest, ErrLoginFailed)
 		return
 	}
 
 	// Compare password with hashed version
 	ok, err := ComparePasswordAndHash(loginSchema.Password, u.Password)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	} else if !ok {
-		c.AbortWithError(http.StatusForbidden, ErrLoginFailed)
+		AbortError(c, http.StatusForbidden, ErrLoginFailed)
 		return
 	}
 
 	// Create session
 	sessionKey, err := dc.sessionManager.NewSession(u.Username, u.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -154,13 +154,13 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 func (dc *ChrysalisController) Register(c *gin.Context) {
 	var loginSchema LoginSchema
 	if err := c.ShouldBind(&loginSchema); err != nil {
-		c.AbortWithError(http.StatusBadRequest, ErrBadRequest)
+		AbortError(c, http.StatusBadRequest, ErrBadRequest)
 		return
 	}
 
 	passHash, err := HashPassword(loginSchema.Password, DefaultParams())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -173,20 +173,20 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		if pgErr.Code == "23505" {
-			c.AbortWithError(http.StatusConflict, ErrUserAlreadyExists)
+			AbortError(c, http.StatusConflict, ErrUserAlreadyExists)
 		} else {
-			c.AbortWithError(http.StatusInternalServerError, pgErr)
+			AbortError(c, http.StatusInternalServerError, pgErr)
 		}
 		return
 	} else if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	// Create initial user session
 	sessionKey, err := dc.sessionManager.NewSession(u.Username, u.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -210,7 +210,7 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 func (dc *ChrysalisController) Logout(c *gin.Context) {
 	key, ok := c.Value("sessionKey").(string)
 	if !ok {
-		c.AbortWithError(
+		AbortError(c,
 			http.StatusInternalServerError,
 			errors.New("Session key not set"),
 		)
@@ -219,7 +219,7 @@ func (dc *ChrysalisController) Logout(c *gin.Context) {
 
 	err := dc.sessionManager.EndSession(key)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 	}
 
 	c.SetCookie(
@@ -240,7 +240,7 @@ func (dc *ChrysalisController) Logout(c *gin.Context) {
 func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -248,7 +248,7 @@ func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
 
 	username := c.Param("username")
 	if username == "" {
-		c.AbortWithError(
+		AbortError(c,
 			http.StatusBadRequest,
 			errors.New("Must provide username"),
 		)
@@ -257,16 +257,16 @@ func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
 
 	user, err := qtx.GetUserByUsername(c.Request.Context(), username)
 	if err != nil {
-		c.AbortWithError(http.StatusNotFound, errors.New("User not found"))
+		AbortError(c, http.StatusNotFound, errors.New("User not found"))
 	}
 
 	services, err := qtx.GetUserFormHeaders(c.Request.Context(), user.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusNotFound, errors.New("Services not found"))
+		AbortError(c, http.StatusNotFound, errors.New("Services not found"))
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -276,7 +276,7 @@ func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
 func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -285,7 +285,7 @@ func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
 	username := c.Param("username")
 	serviceSlug := c.Param("servicename")
 	if username == "" || serviceSlug == "" {
-		c.AbortWithError(
+		AbortError(c,
 			http.StatusBadRequest,
 			errors.New("Must provide username and service name"),
 		)
@@ -294,7 +294,7 @@ func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
 
 	user, err := qtx.GetUserByUsername(c.Request.Context(), username)
 	if err != nil {
-		c.AbortWithError(http.StatusNotFound, errors.New("User not found"))
+		AbortError(c, http.StatusNotFound, errors.New("User not found"))
 	}
 
 	params := db.GetCurrentFormVersionBySlugParams{
@@ -304,7 +304,7 @@ func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
 
 	service, err := qtx.GetCurrentFormVersionBySlug(c.Request.Context(), params)
 	if err != nil {
-		c.AbortWithError(http.StatusNotFound, errors.New("Service not found"))
+		AbortError(c, http.StatusNotFound, errors.New("Service not found"))
 		return
 	}
 
@@ -313,7 +313,7 @@ func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
 		service.FormVersionID,
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusNotFound, errors.New("Fields not found"))
+		AbortError(c, http.StatusNotFound, errors.New("Fields not found"))
 		return
 	}
 
@@ -322,13 +322,13 @@ func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
 	for i, f := range rawFields {
 		err = parsedFields[i].FromRow(f)
 		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			AbortError(c, http.StatusInternalServerError, err)
 			return
 		}
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -348,7 +348,7 @@ type NewServiceSpec struct {
 func (dc *ChrysalisController) CreateService(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -361,7 +361,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 	// Prevent creating a service if the username in the url does not match the
 	// logged in user
 	if !dc.IsUser(c, username) {
-		c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
+		AbortError(c, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
 	sessionData, _ := GetSessionData(c)
@@ -369,7 +369,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 	var spec NewServiceSpec
 	err = c.BindJSON(&spec)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		AbortError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -379,7 +379,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 		Slug:      spec.Slug,
 	})
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -392,7 +392,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -404,7 +404,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -420,7 +420,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 			},
 		)
 		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			AbortError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -428,7 +428,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 		case db.FieldTypeCheckbox:
 			d, ok := f.Data.(*formfield.CheckboxFieldData)
 			if !ok {
-				c.AbortWithError(
+				AbortError(c,
 					http.StatusInternalServerError,
 					formfield.ErrInvalidFormField,
 				)
@@ -443,13 +443,13 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 				},
 			)
 			if err != nil {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				AbortError(c, http.StatusInternalServerError, err)
 				return
 			}
 		case db.FieldTypeRadio:
 			d, ok := f.Data.(*formfield.RadioFieldData)
 			if !ok {
-				c.AbortWithError(
+				AbortError(c,
 					http.StatusInternalServerError,
 					formfield.ErrInvalidFormField,
 				)
@@ -464,13 +464,13 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 				},
 			)
 			if err != nil {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				AbortError(c, http.StatusInternalServerError, err)
 				return
 			}
 		case db.FieldTypeText:
 			d, ok := f.Data.(*formfield.TextFieldData)
 			if !ok {
-				c.AbortWithError(
+				AbortError(c,
 					http.StatusInternalServerError,
 					formfield.ErrInvalidFormField,
 				)
@@ -485,14 +485,14 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 				},
 			)
 			if err != nil {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				AbortError(c, http.StatusInternalServerError, err)
 				return
 			}
 		}
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -510,7 +510,7 @@ type UpdateServiceSpec struct {
 func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -522,14 +522,14 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 	slug := c.Param("servicename")
 
 	if slug == "" {
-		c.AbortWithError(http.StatusBadRequest, errors.New("Missing slug"))
+		AbortError(c, http.StatusBadRequest, errors.New("Missing slug"))
 		return
 	}
 
 	// Prevent creating a service if the username in the url does not match the
 	// logged in user
 	if !dc.IsUser(c, username) {
-		c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
+		AbortError(c, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
 	sessionData, _ := GetSessionData(c)
@@ -537,7 +537,7 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 	var spec UpdateServiceSpec
 	err = c.BindJSON(&spec)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		AbortError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -558,7 +558,7 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -570,7 +570,7 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -586,7 +586,7 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 			},
 		)
 		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			AbortError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -594,7 +594,7 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 		case db.FieldTypeCheckbox:
 			d, ok := f.Data.(*formfield.CheckboxFieldData)
 			if !ok {
-				c.AbortWithError(
+				AbortError(c,
 					http.StatusInternalServerError,
 					formfield.ErrInvalidFormField,
 				)
@@ -609,13 +609,13 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 				},
 			)
 			if err != nil {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				AbortError(c, http.StatusInternalServerError, err)
 				return
 			}
 		case db.FieldTypeRadio:
 			d, ok := f.Data.(*formfield.RadioFieldData)
 			if !ok {
-				c.AbortWithError(
+				AbortError(c,
 					http.StatusInternalServerError,
 					formfield.ErrInvalidFormField,
 				)
@@ -630,13 +630,13 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 				},
 			)
 			if err != nil {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				AbortError(c, http.StatusInternalServerError, err)
 				return
 			}
 		case db.FieldTypeText:
 			d, ok := f.Data.(*formfield.TextFieldData)
 			if !ok {
-				c.AbortWithError(
+				AbortError(c,
 					http.StatusInternalServerError,
 					formfield.ErrInvalidFormField,
 				)
@@ -651,14 +651,14 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 				},
 			)
 			if err != nil {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				AbortError(c, http.StatusInternalServerError, err)
 				return
 			}
 		}
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -671,13 +671,13 @@ func (dc *ChrysalisController) DeleteService(c *gin.Context) {
 	slug := c.Param("servicename")
 
 	if !dc.IsUser(c, username) {
-		c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
+		AbortError(c, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
 	sessionData, _ := GetSessionData(c)
 
 	if username == "" || slug == "" {
-		c.AbortWithError(
+		AbortError(c,
 			http.StatusBadRequest,
 			errors.New("Must provide username and service name"),
 		)
@@ -689,7 +689,7 @@ func (dc *ChrysalisController) DeleteService(c *gin.Context) {
 		CreatorID: sessionData.UserID,
 	})
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 

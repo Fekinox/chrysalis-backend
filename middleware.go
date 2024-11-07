@@ -61,12 +61,12 @@ func ApiKeyMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key, err := extractToken(c, "Authorization")
 		if err != nil {
-			c.AbortWithError(http.StatusUnauthorized, MissingAPIKeyError)
+			AbortError(c, http.StatusUnauthorized, MissingAPIKeyError)
 			return
 		}
 
 		if !verifyApiKey(cfg, key) {
-			c.AbortWithError(
+			AbortError(c,
 				http.StatusUnauthorized,
 				InvalidAuthenticationError,
 			)
@@ -83,7 +83,7 @@ func RateLimiter(r rate.Limit, b int) gin.HandlerFunc {
 	limiter := rate.NewLimiter(r, b)
 	return func(c *gin.Context) {
 		if !limiter.Allow() {
-			c.AbortWithError(http.StatusTooManyRequests, RateLimitExceededError)
+			AbortError(c, http.StatusTooManyRequests, RateLimitExceededError)
 			return
 		} else {
 			c.Next()
@@ -162,10 +162,21 @@ func HasSessionKey(sm session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, ok := GetSessionData(c)
 		if !ok {
-			c.AbortWithError(http.StatusForbidden, NotLoggedInError)
+			AbortError(c, http.StatusForbidden, NotLoggedInError)
 			return
 		}
 
 		c.Next()
 	}
+}
+
+func AbortStatus(c *gin.Context, code int) {
+	c.Status(code)
+	c.Abort()
+}
+
+func AbortError(c *gin.Context, code int, err error) {
+	c.Status(code)
+	c.Error(err)
+	c.Abort()
 }

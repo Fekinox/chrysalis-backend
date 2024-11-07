@@ -4,12 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/genbytes"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
+const MAX_TASK_RETRY_ATTEMPTS int = 10
 
 func generateTaskSlug() (string, error) {
 	slug, err := genbytes.GenRandomBytes(4)
@@ -24,7 +28,7 @@ func generateTaskSlug() (string, error) {
 func (dc *ChrysalisController) OutboundTasks(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -34,12 +38,12 @@ func (dc *ChrysalisController) OutboundTasks(c *gin.Context) {
 
 	task, err := qtx.GetOutboundTasks(c.Request.Context(), client)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -50,7 +54,7 @@ func (dc *ChrysalisController) OutboundTasks(c *gin.Context) {
 func (dc *ChrysalisController) InboundTasks(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -60,12 +64,12 @@ func (dc *ChrysalisController) InboundTasks(c *gin.Context) {
 
 	task, err := qtx.GetInboundTasks(c.Request.Context(), serviceCreator)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -76,7 +80,7 @@ func (dc *ChrysalisController) InboundTasks(c *gin.Context) {
 func (dc *ChrysalisController) GetTasksForService(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -93,12 +97,12 @@ func (dc *ChrysalisController) GetTasksForService(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -109,7 +113,7 @@ func (dc *ChrysalisController) GetTasksForService(c *gin.Context) {
 func (dc *ChrysalisController) GetDetailedTaskInformation(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -125,12 +129,12 @@ func (dc *ChrysalisController) GetDetailedTaskInformation(c *gin.Context) {
 		TaskSlug: taskSlug,
 	})
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -141,7 +145,7 @@ func (dc *ChrysalisController) GetDetailedTaskInformation(c *gin.Context) {
 func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -152,7 +156,7 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 	serviceSlug := c.Param("servicename")
 
 	if serviceCreator == "" || serviceSlug == "" {
-		c.AbortWithError(
+		AbortError(c,
 			http.StatusNotFound,
 			errors.New("Username or service cannot be empty"),
 		)
@@ -161,7 +165,7 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 
 	creator, err := qtx.GetUserByUsername(c.Request.Context(), serviceCreator)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -173,40 +177,63 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	var task *db.CreateTaskRow
+	var attempts int
 	for {
-		taskSlug, err := generateTaskSlug()
-		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+		err := pgx.BeginFunc(
+			c.Request.Context(),
+			tx,
+			func(loopTx pgx.Tx) error {
+				taskSlug, err := generateTaskSlug()
+				if err != nil {
+					AbortError(c, http.StatusInternalServerError, err)
+					return err
+				}
+
+				task, err = dc.db.WithTx(loopTx).
+					CreateTask(c.Request.Context(), db.CreateTaskParams{
+						FormVersionID: form.FormVersionID,
+						ClientID:      sessionData.UserID,
+						Slug:          taskSlug,
+					})
+
+				return err
+			},
+		)
+
+		var pgErr *pgconn.PgError
+
+		if err == nil {
+			break
+		} else if errors.As(err, &pgErr) {
+			if pgErr.Code != "23505" || pgErr.ConstraintName != "task_slug_unique" {
+				AbortError(c, http.StatusInternalServerError, err)
+				return
+			}
+		} else {
+			AbortError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		task, err = qtx.CreateTask(c.Request.Context(), db.CreateTaskParams{
-			FormVersionID: form.FormVersionID,
-			ClientID:      sessionData.UserID,
-			Slug:          taskSlug,
-		})
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" {
-				continue
-			} else {
-				c.AbortWithError(http.StatusInternalServerError, pgErr)
-			}
-			return
-		} else if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+		attempts++
+
+		if attempts >= MAX_TASK_RETRY_ATTEMPTS {
+			AbortError(c,
+				http.StatusRequestTimeout,
+				fmt.Errorf("Too many retry attempts"),
+			)
 			return
 		}
-		break
+
+		time.Sleep(time.Millisecond * 50)
 	}
 
 	if err = tx.Commit(c.Request.Context()); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -217,7 +244,7 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
 	tx, err := dc.conn.Begin(c.Request.Context())
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -236,12 +263,16 @@ func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
 			TaskSlug: taskSlug,
 		},
 	)
-	fmt.Println(n)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	} else if len(n) == 0 {
-		c.AbortWithError(http.StatusNotFound, ErrNotFound(serviceCreator))
+		AbortError(c, http.StatusNotFound, ErrNotFound(serviceCreator))
+		return
+	}
+
+	if err = tx.Commit(c.Request.Context()); err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
