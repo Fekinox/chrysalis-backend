@@ -137,55 +137,9 @@ func createServiceVersion(ctx context.Context, d interface {
 				return err
 			}
 
-			switch f.FieldType {
-			case db.FieldTypeCheckbox:
-				d, ok := f.Data.(*formfield.CheckboxFieldData)
-				if !ok {
-					return formfield.ErrInvalidFormField
-				}
-				_, err := qtx.AddCheckboxFieldToForm(
-					ctx,
-					db.AddCheckboxFieldToFormParams{
-						FormVersionID: version.ID,
-						Idx:           int64(i),
-						Options:       d.Options,
-					},
-				)
-				if err != nil {
-					return err
-				}
-			case db.FieldTypeRadio:
-				d, ok := f.Data.(*formfield.RadioFieldData)
-				if !ok {
-					return formfield.ErrInvalidFormField
-				}
-				_, err := qtx.AddRadioFieldToForm(
-					ctx,
-					db.AddRadioFieldToFormParams{
-						FormVersionID: version.ID,
-						Idx:           int64(i),
-						Options:       d.Options,
-					},
-				)
-				if err != nil {
-					return err
-				}
-			case db.FieldTypeText:
-				d, ok := f.Data.(*formfield.TextFieldData)
-				if !ok {
-					return formfield.ErrInvalidFormField
-				}
-				_, err := qtx.AddTextFieldToForm(
-					ctx,
-					db.AddTextFieldToFormParams{
-						FormVersionID: version.ID,
-						Idx:           int64(i),
-						Paragraph:     d.Paragraph,
-					},
-				)
-				if err != nil {
-					return err
-				}
+			err = f.Data.Create(ctx, d, qtx, version.ID, int64(i))
+			if err != nil {
+				return err
 			}
 		}
 
