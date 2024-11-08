@@ -8,7 +8,6 @@ import (
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/formfield"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -44,13 +43,13 @@ type CreateServiceVersionParams struct {
 	Fields      []formfield.FormField
 }
 
-func GetServiceForm(ctx context.Context, d interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
-}, q *db.Queries, p ServiceFormParams) (form *ServiceForm, err error) {
-	err = pgx.BeginFunc(ctx, d, func(tx pgx.Tx) error {
-		qtx := q.WithTx(tx)
-
-		user, err := qtx.GetUserByUsername(ctx, p.Username)
+func GetServiceForm(
+	ctx context.Context,
+	d *db.Store,
+	p ServiceFormParams,
+) (form *ServiceForm, err error) {
+	err = d.BeginFunc(ctx, func(stx *db.Store) error {
+		user, err := stx.GetUserByUsername(ctx, p.Username)
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrUserNotFound, p.Username)
 		}
@@ -60,12 +59,12 @@ func GetServiceForm(ctx context.Context, d interface {
 			CreatorID: user.ID,
 		}
 
-		service, err := qtx.GetCurrentFormVersionBySlug(ctx, params)
+		service, err := stx.GetCurrentFormVersionBySlug(ctx, params)
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrServiceNotFound, p.Service)
 		}
 
-		rawFields, err := qtx.GetFormFields(
+		rawFields, err := stx.GetFormFields(
 			ctx,
 			service.FormVersionID,
 		)
@@ -99,13 +98,13 @@ func GetServiceForm(ctx context.Context, d interface {
 	return form, err
 }
 
-func createServiceVersion(ctx context.Context, d interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
-}, q *db.Queries, p CreateServiceVersionParams) (form *ServiceForm, err error) {
-	err = pgx.BeginFunc(ctx, d, func(tx pgx.Tx) error {
-		qtx := q.WithTx(tx)
-
-		frm, err := qtx.GetFormHeaderBySlug(ctx, db.GetFormHeaderBySlugParams{
+func createServiceVersion(
+	ctx context.Context,
+	d *db.Store,
+	p CreateServiceVersionParams,
+) (form *ServiceForm, err error) {
+	err = d.BeginFunc(ctx, func(stx *db.Store) error {
+		frm, err := stx.GetFormHeaderBySlug(ctx, db.GetFormHeaderBySlugParams{
 			CreatorID: p.CreatorID,
 			Slug:      p.ServiceSlug,
 		})
@@ -113,7 +112,7 @@ func createServiceVersion(ctx context.Context, d interface {
 			return err
 		}
 
-		version, err := qtx.CreateFormVersion(ctx, db.CreateFormVersionParams{
+		version, err := stx.CreateFormVersion(ctx, db.CreateFormVersionParams{
 			FormID:      frm.ID,
 			Name:        p.Title,
 			Description: p.Description,
@@ -123,7 +122,7 @@ func createServiceVersion(ctx context.Context, d interface {
 		}
 
 		for i, f := range p.Fields {
-			_, err := qtx.AddFormFieldToForm(
+			_, err := stx.AddFormFieldToForm(
 				ctx,
 				db.AddFormFieldToFormParams{
 					FormVersionID: version.ID,
@@ -137,7 +136,7 @@ func createServiceVersion(ctx context.Context, d interface {
 				return err
 			}
 
-			err = f.Data.Create(ctx, d, qtx, version.ID, int64(i))
+			err = f.Data.Create(ctx, stx, version.ID, int64(i))
 			if err != nil {
 				return err
 			}
@@ -161,14 +160,13 @@ func createServiceVersion(ctx context.Context, d interface {
 	return form, err
 }
 
-func CreateServiceForm(ctx context.Context, d interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
-}, q *db.Queries, p CreateServiceVersionParams) (form *ServiceForm, err error) {
-	err = pgx.BeginFunc(ctx, d, func(tx pgx.Tx) error {
-		qtx := q.WithTx(tx)
-		_ = qtx
-
-		_, err := qtx.CreateForm(ctx, db.CreateFormParams{
+func CreateServiceForm(
+	ctx context.Context,
+	d *db.Store,
+	p CreateServiceVersionParams,
+) (form *ServiceForm, err error) {
+	err = d.BeginFunc(ctx, func(stx *db.Store) error {
+		_, err := stx.CreateForm(ctx, db.CreateFormParams{
 			CreatorID: p.CreatorID,
 			Slug:      p.ServiceSlug,
 		})
@@ -176,12 +174,12 @@ func CreateServiceForm(ctx context.Context, d interface {
 			return err
 		}
 
-		form, err = createServiceVersion(ctx, tx, qtx, p)
+		form, err = createServiceVersion(ctx, stx, p)
 		if err != nil {
 			return err
 		}
 
-		_, err = qtx.AssignCurrentFormVersion(
+		_, err = stx.AssignCurrentFormVersion(
 			ctx,
 			db.AssignCurrentFormVersionParams{
 				FormID:        form.FormID,
@@ -198,18 +196,18 @@ func CreateServiceForm(ctx context.Context, d interface {
 	return form, err
 }
 
-func UpdateServiceForm(ctx context.Context, d interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
-}, q *db.Queries, p CreateServiceVersionParams) (form *ServiceForm, err error) {
-	err = pgx.BeginFunc(ctx, d, func(tx pgx.Tx) error {
-		qtx := q.WithTx(tx)
-
-		form, err = createServiceVersion(ctx, tx, qtx, p)
+func UpdateServiceForm(
+	ctx context.Context,
+	d *db.Store,
+	p CreateServiceVersionParams,
+) (form *ServiceForm, err error) {
+	err = d.BeginFunc(ctx, func(stx *db.Store) error {
+		form, err = createServiceVersion(ctx, stx, p)
 		if err != nil {
 			return err
 		}
 
-		dupes, err := qtx.FindDuplicates(ctx, form.FormVersionID)
+		dupes, err := stx.FindDuplicates(ctx, form.FormVersionID)
 		if err != nil {
 			return err
 		}
@@ -217,7 +215,7 @@ func UpdateServiceForm(ctx context.Context, d interface {
 			return ErrUnchangedForm
 		}
 
-		_, err = qtx.AssignCurrentFormVersion(
+		_, err = stx.AssignCurrentFormVersion(
 			ctx,
 			db.AssignCurrentFormVersionParams{
 				FormID:        form.FormID,

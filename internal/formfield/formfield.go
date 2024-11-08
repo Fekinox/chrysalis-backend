@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
-	"github.com/jackc/pgx/v5"
 )
 
 var (
@@ -24,10 +23,7 @@ type FormField struct {
 type FormFieldData interface {
 	Create(
 		ctx context.Context,
-		d interface {
-			Begin(ctx context.Context) (pgx.Tx, error)
-		},
-		q *db.Queries,
+		db *db.Store,
 		formVersionID, idx int64,
 	) error
 }
@@ -124,66 +120,48 @@ func (ff *FormField) UnmarshalJSON(data []byte) error {
 
 func (c *CheckboxFieldData) Create(
 	ctx context.Context,
-	d interface {
-		Begin(ctx context.Context) (pgx.Tx, error)
-	},
-	q *db.Queries,
+	store *db.Store,
 	formVersionID int64, idx int64,
 ) error {
-	return pgx.BeginFunc(ctx, d, func(tx pgx.Tx) error {
-		qtx := q.WithTx(tx)
-		_, err := qtx.AddCheckboxFieldToForm(
-			ctx,
-			db.AddCheckboxFieldToFormParams{
-				FormVersionID: formVersionID,
-				Idx:           idx,
-				Options:       c.Options,
-			},
-		)
-		return err
-	})
+	_, err := store.AddCheckboxFieldToForm(
+		ctx,
+		db.AddCheckboxFieldToFormParams{
+			FormVersionID: formVersionID,
+			Idx:           idx,
+			Options:       c.Options,
+		},
+	)
+	return err
 }
 
 func (r *RadioFieldData) Create(
 	ctx context.Context,
-	d interface {
-		Begin(ctx context.Context) (pgx.Tx, error)
-	},
-	q *db.Queries,
+	store *db.Store,
 	formVersionID int64, idx int64,
 ) error {
-	return pgx.BeginFunc(ctx, d, func(tx pgx.Tx) error {
-		qtx := q.WithTx(tx)
-		_, err := qtx.AddRadioFieldToForm(
-			ctx,
-			db.AddRadioFieldToFormParams{
-				FormVersionID: formVersionID,
-				Idx:           idx,
-				Options:       r.Options,
-			},
-		)
-		return err
-	})
+	_, err := store.AddRadioFieldToForm(
+		ctx,
+		db.AddRadioFieldToFormParams{
+			FormVersionID: formVersionID,
+			Idx:           idx,
+			Options:       r.Options,
+		},
+	)
+	return err
 }
 
 func (t *TextFieldData) Create(
 	ctx context.Context,
-	d interface {
-		Begin(ctx context.Context) (pgx.Tx, error)
-	},
-	q *db.Queries,
+	store *db.Store,
 	formVersionID int64, idx int64,
 ) error {
-	return pgx.BeginFunc(ctx, d, func(tx pgx.Tx) error {
-		qtx := q.WithTx(tx)
-		_, err := qtx.AddTextFieldToForm(
-			ctx,
-			db.AddTextFieldToFormParams{
-				FormVersionID: formVersionID,
-				Idx:           idx,
-				Paragraph:     t.Paragraph,
-			},
-		)
-		return err
-	})
+	_, err := store.AddTextFieldToForm(
+		ctx,
+		db.AddTextFieldToFormParams{
+			FormVersionID: formVersionID,
+			Idx:           idx,
+			Paragraph:     t.Paragraph,
+		},
+	)
+	return err
 }

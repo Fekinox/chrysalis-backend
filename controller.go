@@ -17,10 +17,10 @@ import (
 )
 
 type ChrysalisController struct {
-	db     *db.Queries
 	cfg    config.Config
 	router *gin.Engine
 	conn   *pgx.Conn
+	store  *db.Store
 
 	sessionManager session.Manager
 }
@@ -55,13 +55,13 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 		return nil, err
 	}
 
-	q := db.New(conn)
+	store := db.NewStore(conn)
 
 	return &ChrysalisController{
-		db:     q,
 		cfg:    cfg,
 		conn:   conn,
 		router: engine,
+		store:  store,
 
 		sessionManager: session.NewMemorySessionManager(),
 	}, nil
@@ -109,7 +109,7 @@ func (dc *ChrysalisController) Login(c *gin.Context) {
 	}
 
 	// Retrieve user from database
-	u, err := dc.db.GetUserByUsername(
+	u, err := dc.store.GetUserByUsername(
 		c.Request.Context(),
 		loginSchema.Username,
 	)
@@ -170,7 +170,7 @@ func (dc *ChrysalisController) Register(c *gin.Context) {
 		Password: passHash,
 	}
 
-	u, err := dc.db.CreateUser(c.Request.Context(), userParams)
+	u, err := dc.store.CreateUser(c.Request.Context(), userParams)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		if pgErr.Code == "23505" {
@@ -245,7 +245,7 @@ func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
-	qtx := dc.db.WithTx(tx)
+	qtx := dc.store.WithTx(tx)
 
 	username := c.Param("username")
 	if username == "" {
@@ -289,8 +289,7 @@ func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
 
 	form, err := models.GetServiceForm(
 		c.Request.Context(),
-		dc.conn,
-		dc.db,
+		dc.store,
 		params,
 	)
 	if err != nil {
@@ -339,8 +338,7 @@ func (dc *ChrysalisController) CreateService(c *gin.Context) {
 
 	_, err = models.CreateServiceForm(
 		c.Request.Context(),
-		dc.conn,
-		dc.db,
+		dc.store,
 		models.CreateServiceVersionParams{
 			CreatorID:   sessionData.UserID,
 			ServiceSlug: spec.Slug,
@@ -391,8 +389,7 @@ func (dc *ChrysalisController) UpdateService(c *gin.Context) {
 
 	_, err = models.UpdateServiceForm(
 		c.Request.Context(),
-		dc.conn,
-		dc.db,
+		dc.store,
 		models.CreateServiceVersionParams{
 			CreatorID:   sessionData.UserID,
 			ServiceSlug: slug,
@@ -434,7 +431,7 @@ func (dc *ChrysalisController) DeleteService(c *gin.Context) {
 		return
 	}
 
-	err := dc.db.DeleteForm(c.Request.Context(), db.DeleteFormParams{
+	err := dc.store.DeleteForm(c.Request.Context(), db.DeleteFormParams{
 		Slug:      slug,
 		CreatorID: sessionData.UserID,
 	})
