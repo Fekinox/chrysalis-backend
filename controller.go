@@ -243,7 +243,7 @@ func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
 		username := c.Param("username")
 		if username == "" {
 			err := errors.New("Must provide username")
-				AbortError(c,
+			AbortError(c,
 				http.StatusBadRequest,
 				err,
 			)
