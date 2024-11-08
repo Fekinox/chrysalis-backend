@@ -3,8 +3,8 @@ sql:
   - engine: "postgresql"
     queries: "./db/query"
     schema: "./db/migration"
-    # database:
-    #   uri: "postgres://postgres:postgres@localhost:5432/postgres"
+    database:
+      uri: "postgres://postgres:postgres@localhost:5432/postgres"
     gen:
       go:
         package: "db"
