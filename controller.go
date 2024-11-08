@@ -239,39 +239,32 @@ func (dc *ChrysalisController) Logout(c *gin.Context) {
 }
 
 func (dc *ChrysalisController) GetUserServices(c *gin.Context) {
-	tx, err := dc.conn.Begin(c.Request.Context())
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	}
-	defer tx.Rollback(c.Request.Context())
-	qtx := dc.store.WithTx(tx)
+	_ = dc.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
+		username := c.Param("username")
+		if username == "" {
+			err := errors.New("Must provide username")
+				AbortError(c,
+				http.StatusBadRequest,
+				err,
+			)
+			return err
+		}
 
-	username := c.Param("username")
-	if username == "" {
-		AbortError(c,
-			http.StatusBadRequest,
-			errors.New("Must provide username"),
-		)
-		return
-	}
+		user, err := s.GetUserByUsername(c.Request.Context(), username)
+		if err != nil {
+			AbortError(c, http.StatusNotFound, errors.New("User not found"))
+			return err
+		}
 
-	user, err := qtx.GetUserByUsername(c.Request.Context(), username)
-	if err != nil {
-		AbortError(c, http.StatusNotFound, errors.New("User not found"))
-	}
+		services, err := s.GetUserFormHeaders(c.Request.Context(), user.ID)
+		if err != nil {
+			AbortError(c, http.StatusNotFound, errors.New("Services not found"))
+			return err
+		}
 
-	services, err := qtx.GetUserFormHeaders(c.Request.Context(), user.ID)
-	if err != nil {
-		AbortError(c, http.StatusNotFound, errors.New("Services not found"))
-	}
-
-	if err = tx.Commit(c.Request.Context()); err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	c.JSON(http.StatusAccepted, services)
+		c.JSON(http.StatusAccepted, services)
+		return nil
+	})
 }
 
 func (dc *ChrysalisController) GetServiceBySlug(c *gin.Context) {
