@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{{.user}}'s Services</title>
+        <link href="/static/css/style.css" rel="stylesheet">
+    </head>
+    <body>
+        <h1>{{.user}}'s Services</h1>
+        <ul>
+        {{ range .services }}
+            <li>
+                <div>
+                    <h6>{{ .Name }}
+                    <p>{{ .Description }}
+                </div>
+            </li>
+        {{ end }}
+        </ul>
+    </body>
+</html>

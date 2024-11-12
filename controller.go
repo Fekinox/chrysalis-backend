@@ -57,6 +57,8 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 
 	store := db.NewStore(conn)
 
+	engine.LoadHTMLGlob("templates/*")
+
 	return &ChrysalisController{
 		cfg:    cfg,
 		conn:   conn,
@@ -99,6 +101,10 @@ func (dc *ChrysalisController) DummyHandler(c *gin.Context) {
 		"sessionKey":  sessionKey,
 		"sessionData": sessionData,
 	})
+}
+
+func (dc *ChrysalisController) DummyTemplateHandler(c *gin.Context) {
+	c.HTML(http.StatusOK, "test.html.tmpl", nil)
 }
 
 func (dc *ChrysalisController) Login(c *gin.Context) {
@@ -434,4 +440,73 @@ func (dc *ChrysalisController) DeleteService(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (dc *ChrysalisController) GetUserServicesHTML(c *gin.Context) {
+	_ = dc.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
+		username := c.Param("username")
+		if username == "" {
+			err := errors.New("Must provide username")
+			AbortError(c,
+				http.StatusBadRequest,
+				err,
+			)
+			return err
+		}
+
+		user, err := s.GetUserByUsername(c.Request.Context(), username)
+		if err != nil {
+			AbortError(c, http.StatusNotFound, errors.New("User not found"))
+			return err
+		}
+
+		services, err := s.GetUserFormHeaders(c.Request.Context(), user.ID)
+		if err != nil {
+			AbortError(c, http.StatusNotFound, errors.New("Services not found"))
+			return err
+		}
+
+		c.HTML(http.StatusOK, "userServices.html.tmpl", gin.H{
+			"user":     user.Username,
+			"services": services,
+		})
+		return nil
+	})
+}
+
+func (dc *ChrysalisController) GetServiceDetail(c *gin.Context) {
+	params := models.ServiceFormParams{
+		Username: c.Param("username"),
+		Service:  c.Param("servicename"),
+	}
+	if params.Username == "" || params.Service == "" {
+		AbortError(c,
+			http.StatusBadRequest,
+			errors.New("Must provide username and service name"),
+		)
+		return
+	}
+
+	form, err := models.GetServiceForm(
+		c.Request.Context(),
+		dc.store,
+		params,
+	)
+	if err != nil {
+		if errors.Is(err,
+			errors.Join(
+				models.ErrUserNotFound,
+				models.ErrServiceNotFound,
+				models.ErrFieldsNotFound,
+			),
+		) {
+			AbortError(c, http.StatusNotFound, err)
+			return
+		}
+
+		AbortError(c, http.StatusNotFound, err)
+		return
+	}
+
+	c.HTML(http.StatusOK, "serviceDetail.html.tmpl", form)
 }

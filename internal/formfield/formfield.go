@@ -26,6 +26,7 @@ type FormFieldData interface {
 		db *db.Store,
 		formVersionID, idx int64,
 	) error
+	ExecTemplate(name string) string
 }
 
 type CheckboxFieldData struct {
@@ -164,4 +165,16 @@ func (t *TextFieldData) Create(
 		},
 	)
 	return err
+}
+
+func (c *CheckboxFieldData) ExecTemplate(name string) string {
+	return ""
+}
+
+func (r *RadioFieldData) ExecTemplate(name string) string {
+	return ""
+}
+
+func (t *TextFieldData) ExecTemplate(name string) string {
+	return ""
 }

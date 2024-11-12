@@ -1,8 +1,9 @@
 package main
 
 func (dc *ChrysalisController) MountHandlers() {
+	dc.router.Use(ErrorHandler(&dc.cfg))
+
 	api := dc.router.Group("/api")
-	api.Use(ErrorHandler(&dc.cfg))
 	api.Use(SessionKey(dc.sessionManager))
 
 	auth := api.Group("/auth")
@@ -44,4 +45,8 @@ func (dc *ChrysalisController) MountHandlers() {
 		"/:username/services/:servicename/tasks/:taskslug",
 		dc.UpdateTask,
 	)
+
+	dc.router.GET("/helloworld", dc.DummyTemplateHandler)
+	dc.router.GET("/:username/services", dc.GetUserServicesHTML)
+	dc.router.GET("/:username/services/:servicename", dc.GetServiceDetail)
 }
