@@ -26,53 +26,77 @@ func generateTaskSlug() (string, error) {
 
 // Get all tasks that a user has sent to other services
 func (dc *ChrysalisController) OutboundTasks(c *gin.Context) {
-	client := c.Param("username")
+	err := dc.StoreFunc(c.Request.Context(), func(s *db.Store) error {
+		client := c.Param("username")
 
-	task, err := dc.store.GetOutboundTasks(c.Request.Context(), client)
+		task, err := s.GetOutboundTasks(c.Request.Context(), client)
+		if err != nil {
+			return err
+		}
+
+		c.JSON(http.StatusOK, task)
+		return nil
+	})
+
+	// TODO: Implement proper error codes
 	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
+		code := http.StatusInternalServerError
+		AbortError(c, code, err)
 	}
-
-	c.JSON(http.StatusOK, task)
 }
 
 // Get all tasks that a user has received across all their services
 func (dc *ChrysalisController) InboundTasks(c *gin.Context) {
-	serviceCreator := c.Param("username")
+	err := dc.StoreFunc(c.Request.Context(), func(s *db.Store) error {
+		serviceCreator := c.Param("username")
 
-	task, err := dc.store.GetInboundTasks(c.Request.Context(), serviceCreator)
+		task, err := s.GetInboundTasks(c.Request.Context(), serviceCreator)
+		if err != nil {
+			return err
+		}
+
+		c.JSON(http.StatusOK, task)
+		return nil
+	})
+
+	// TODO: Implement proper error codes
 	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
+		code := http.StatusInternalServerError
+		AbortError(c, code, err)
 	}
-
-	c.JSON(http.StatusOK, task)
 }
 
 // Get all outbound tasks for a specific service
 func (dc *ChrysalisController) GetTasksForService(c *gin.Context) {
-	serviceCreator := c.Param("username")
-	serviceSlug := c.Param("servicename")
+	err := dc.StoreFunc(c.Request.Context(), func(s *db.Store) error {
+		serviceCreator := c.Param("username")
+		serviceSlug := c.Param("servicename")
 
-	task, err := dc.store.GetServiceTasksBySlug(
-		c.Request.Context(),
-		db.GetServiceTasksBySlugParams{
-			FormSlug:        serviceSlug,
-			CreatorUsername: serviceCreator,
-		},
-	)
+		task, err := s.GetServiceTasksBySlug(
+			c.Request.Context(),
+			db.GetServiceTasksBySlugParams{
+				FormSlug:        serviceSlug,
+				CreatorUsername: serviceCreator,
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		c.JSON(http.StatusOK, task)
+		return nil
+	})
+
+	// TODO: Implement proper error codes
 	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
+		code := http.StatusInternalServerError
+		AbortError(c, code, err)
 	}
-
-	c.JSON(http.StatusOK, task)
 }
 
 // Get detailed information about a task
 func (dc *ChrysalisController) GetDetailedTaskInformation(c *gin.Context) {
-	err := dc.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
+	err := dc.StoreFuncTx(c.Request.Context(), func(s *db.Store) error {
 		serviceCreator := c.Param("username")
 		serviceSlug := c.Param("servicename")
 		taskSlug := c.Param("taskslug")
@@ -110,14 +134,16 @@ func (dc *ChrysalisController) GetDetailedTaskInformation(c *gin.Context) {
 		return nil
 	})
 
+	// TODO: Implement proper error codes
 	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
+		code := http.StatusInternalServerError
+		AbortError(c, code, err)
 	}
 }
 
 // Create an outbound task on a specific service
 func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
-	err := dc.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
+	err := dc.StoreFuncTx(c.Request.Context(), func(s *db.Store) error {
 		sessionData, _ := GetSessionData(c)
 		serviceCreator := c.Param("username")
 		serviceSlug := c.Param("servicename")
@@ -179,11 +205,7 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 			attempts++
 
 			if attempts >= MAX_TASK_RETRY_ATTEMPTS {
-				AbortError(c,
-					http.StatusRequestTimeout,
-					fmt.Errorf("Too many retry attempts"),
-				)
-				return err
+				return fmt.Errorf("Too many retry attempts")
 			}
 
 			time.Sleep(time.Millisecond * 50)
@@ -194,40 +216,49 @@ func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
 		return nil
 	})
 
+	// TODO: Implement proper error codes
 	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
+		code := http.StatusInternalServerError
+		AbortError(c, code, err)
 	}
 }
 
 // Update the status of a task as the owner of a service
 func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
-	serviceCreator := c.Param("username")
-	serviceSlug := c.Param("servicename")
-	taskSlug := c.Param("taskslug")
+	err := dc.StoreFunc(c.Request.Context(), func(s *db.Store) error {
+		serviceCreator := c.Param("username")
+		serviceSlug := c.Param("servicename")
+		taskSlug := c.Param("taskslug")
 
-	n, err := dc.store.UpdateTaskStatus(
-		c.Request.Context(),
-		db.UpdateTaskStatusParams{
-			Status:   db.TaskStatus(c.Query("status")),
-			Creator:  serviceCreator,
-			FormSlug: serviceSlug,
-			TaskSlug: taskSlug,
-		},
-	)
+		n, err := s.UpdateTaskStatus(
+			c.Request.Context(),
+			db.UpdateTaskStatusParams{
+				Status:   db.TaskStatus(c.Query("status")),
+				Creator:  serviceCreator,
+				FormSlug: serviceSlug,
+				TaskSlug: taskSlug,
+			},
+		)
+		if err != nil {
+			return err
+		} else if len(n) == 0 {
+			return ErrNotFound(serviceCreator)
+		}
+
+		c.Redirect(http.StatusSeeOther,
+			fmt.Sprintf(
+				"/api/users/%s/services/%s/tasks/%s",
+				serviceCreator,
+				serviceSlug,
+				taskSlug,
+			),
+		)
+		return nil
+	})
+
+	// TODO: Implement proper error codes
 	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	} else if len(n) == 0 {
-		AbortError(c, http.StatusNotFound, ErrNotFound(serviceCreator))
-		return
+		code := http.StatusInternalServerError
+		AbortError(c, code, err)
 	}
-
-	c.Redirect(http.StatusSeeOther,
-		fmt.Sprintf(
-			"/api/users/%s/services/%s/tasks/%s",
-			serviceCreator,
-			serviceSlug,
-			taskSlug,
-		),
-	)
 }
