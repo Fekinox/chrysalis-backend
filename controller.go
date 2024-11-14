@@ -9,6 +9,7 @@ import (
 	"github.com/Fekinox/chrysalis-backend/internal/config"
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/formfield"
+	"github.com/Fekinox/chrysalis-backend/internal/htmlrenderer"
 	"github.com/Fekinox/chrysalis-backend/internal/models"
 	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
@@ -57,7 +58,17 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 
 	store := db.NewStore(pool)
 
-	engine.LoadHTMLGlob("templates/*")
+	// FIXME: need to find a way to do nested templates
+	// engine.LoadHTMLGlob("templates/*")
+	var render htmlrenderer.Renderer
+	if gin.IsDebugging() {
+		render = htmlrenderer.NewDebug()
+	} else {
+		render = htmlrenderer.New()
+	}
+	render.AddIncludes("templates/includes")
+	render.AddTemplates("templates/templates")
+	engine.HTMLRender = render
 
 	return &ChrysalisController{
 		cfg:    cfg,

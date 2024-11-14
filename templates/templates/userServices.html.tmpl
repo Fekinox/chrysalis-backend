@@ -1,8 +1,8 @@
-{{define "title"}}{{.User}}'s Services{{end}}
+{{define "title"}}{{.user}}'s Services...{{end}}
 {{define "content"}}
-  <h1>{{.User}}'s Services</h1>
+  <h1>{{.user}}'s Services</h1>
   <ul>
-  {{ range .Services }}
+  {{ range .services }}
     <li>
       <div>
         <h6>{{ .Name }}
