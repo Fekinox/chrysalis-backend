@@ -58,8 +58,6 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 
 	store := db.NewStore(pool)
 
-	// FIXME: need to find a way to do nested templates
-	// engine.LoadHTMLGlob("templates/*")
 	var render htmlrenderer.Renderer
 	if gin.IsDebugging() {
 		render = htmlrenderer.NewDebug()
