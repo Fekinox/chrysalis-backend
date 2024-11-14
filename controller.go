@@ -12,14 +12,14 @@ import (
 	"github.com/Fekinox/chrysalis-backend/internal/models"
 	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ChrysalisController struct {
 	cfg    config.Config
 	router *gin.Engine
-	conn   *pgx.Conn
+	pool   *pgxpool.Pool
 	store  *db.Store
 
 	sessionManager session.Manager
@@ -50,18 +50,18 @@ func CreateController(cfg config.Config) (*ChrysalisController, error) {
 
 	fmt.Println(cfg.GetDBUrl())
 
-	conn, err := pgx.Connect(context.Background(), cfg.GetDBUrl())
+	pool, err := pgxpool.New(context.Background(), cfg.GetDBUrl())
 	if err != nil {
 		return nil, err
 	}
 
-	store := db.NewStore(conn)
+	store := db.NewStore(pool)
 
 	engine.LoadHTMLGlob("templates/*")
 
 	return &ChrysalisController{
 		cfg:    cfg,
-		conn:   conn,
+		pool:   pool,
 		router: engine,
 		store:  store,
 
@@ -78,7 +78,8 @@ func (dc *ChrysalisController) Router() *gin.Engine {
 }
 
 func (dc *ChrysalisController) Close() error {
-	return dc.conn.Close(context.Background())
+	dc.pool.Close()
+	return nil
 }
 
 func (dc *ChrysalisController) IsUser(c *gin.Context, user string) bool {
