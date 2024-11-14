@@ -1,53 +1,56 @@
-{{ define "title" }}Service {{ .Name }}{{ end }}
-{{ define "content" }}
-  <main>
-    <h1>{{ .Name }}</h1>
-    <p>{{ .Description }}</p>
-    <form>
-      {{ range $i, $a := .Fields }}
-        <fieldset>
-          <legend>{{ $a.Prompt }}</legend>
-          {{ if eq $a.FieldType "checkbox" }}
-            {{ range $j, $o := $a.Data.Options }}
-              <div>
-                <input
-                  type="checkbox"
-                  id="field-{{ $i }}-{{ $j }}"
-                  name="field-{{ $i }}"
-                  value="true"
-                />
-                <label for="field-{{ $i }}-{{ $j }}">{{ $o }}</label>
-              </div>
-            {{ end }}
-          {{ else if eq $a.FieldType "radio" }}
-            {{ range $j, $o := $a.Data.Options }}
-              <div>
-                <input
-                  type="radio"
-                  id="field-{{ $i }}-{{ $j }}"
-                  name="field-{{ $i }}"
-                  value="true"
-                />
-                <label for="field-{{ $i }}-{{ $j }}">{{ $o }}</label>
-              </div>
-            {{ end }}
-          {{ else }}
-            {{ if $a.Data.Paragraph }}
-              <textarea
-                type="text"
-                id="field-{{ $i }}"
-                name="field-{{ $i }}"
-                rows="5"
-                cols="15"
-              ></textarea>
-            {{ else }}
-              <input type="text" id="field-{{ $i }}" name="field-{{ $i }}" />
-            {{ end }}
-          {{ end }}
-        </fieldset>
-      {{ end }}
-    </form>
-  </main>
-{{ end }}
-
-{{ template "skeleton" . }}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Service {{.Name}}</title>
+        <link href="/static/css/style.css" rel="stylesheet">
+    </head>
+    <body>
+        <h1>{{.Name}}</h1>
+        <form>
+            {{range $i, $a := .Fields}}
+                <fieldset>
+                    <legend>{{$a.Prompt}}</legend>
+                    {{ if eq $a.FieldType "checkbox" }}
+                        {{ range $j, $o := $a.Data.Options }}
+                            <div>
+                                <input
+                                    type="checkbox"
+                                    id="field-{{$i}}-{{$j}}"
+                                    name="field-{{$i}}"
+                                    value="true" />
+                                <label for="field-{{$i}}-{{$j}}">{{$o}}</label>
+                            </div>
+                        {{ end }}
+                    {{ else if eq $a.FieldType "radio" }}
+                        {{ range $j, $o := $a.Data.Options }}
+                            <div>
+                                <input
+                                    type="radio"
+                                    id="field-{{$i}}-{{$j}}"
+                                    name="field-{{$i}}"
+                                    value="true" />
+                                <label for="field-{{$i}}-{{$j}}">{{$o}}</label>
+                            </div>
+                        {{ end }}
+                    {{ else }}
+                        {{ if $a.Data.Paragraph }}
+                            <textarea
+                                type="text"
+                                id="field-{{$i}}"
+                                name="field-{{$i}}"
+                                rows="5"
+                                cols="15"></textarea>
+                        {{ else }}
+                            <input
+                                type="text"
+                                id="field-{{$i}}"
+                                name="field-{{$i}}" />
+                        {{ end }}
+                    {{ end }}
+                </fieldset> 
+            {{end}}
+        </form>
+    </body>
+</html>

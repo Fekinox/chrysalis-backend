@@ -41,7 +41,7 @@ type Store struct {
 	db Handle
 }
 
-func NewStore(db Handle) *Store {
+func NewStore(db *pgx.Conn) *Store {
 	return &Store{
 		db:      db,
 		Queries: New(db),
