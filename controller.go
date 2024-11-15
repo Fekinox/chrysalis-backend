@@ -32,10 +32,8 @@ type LoginSchema struct {
 }
 
 var (
-	ErrBadRequest = errors.New("Bad request")
-	ErrNotFound   = func(name string) error {
-		return errors.New(fmt.Sprintf("Not found: %s", name))
-	}
+	ErrBadRequest        = errors.New("Bad request")
+	ErrNotFound          = errors.New("Resource not found")
 	ErrUserAlreadyExists = errors.New("User already exists")
 	ErrLoginFailed       = errors.New("Login failed")
 )

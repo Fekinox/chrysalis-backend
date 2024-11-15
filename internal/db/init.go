@@ -22,7 +22,8 @@ import (
 func InitTestDB(
 	config *config.Config,
 ) (pool *dockertest.Pool, res *dockertest.Resource, err error) {
-	// Set up interrupt catcher
+	// Catch any errors or interrupts in the process of spinning up the test DB, and clean up
+	// resources accordingly.
 	quit := make(chan os.Signal, 1)
 	errs := make(chan error)
 	finish := make(chan struct{})
@@ -107,6 +108,11 @@ func InitTestDB(
 		}
 		os.Exit(1)
 	case e := <-errs:
+		if pool != nil || res != nil {
+			if err := pool.Purge(res); err != nil {
+				log.Fatalf("Could not purge database: %s", err)
+			}
+		}
 		return nil, nil, e
 	case <-finish:
 	}

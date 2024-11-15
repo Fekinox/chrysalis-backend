@@ -218,7 +218,7 @@ func (dc *ChrysalisController) UpdateTask(c *gin.Context) {
 		AbortError(c, http.StatusInternalServerError, err)
 		return
 	} else if len(n) == 0 {
-		AbortError(c, http.StatusNotFound, ErrNotFound(serviceCreator))
+		AbortError(c, http.StatusNotFound, fmt.Errorf("%w: %v", ErrNotFound, serviceCreator))
 		return
 	}
 
