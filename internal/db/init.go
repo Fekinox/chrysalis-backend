@@ -3,7 +3,11 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/Fekinox/chrysalis-backend/internal/config"
 	"github.com/golang-migrate/migrate/v4"
@@ -17,69 +21,97 @@ import (
 
 func InitTestDB(
 	config *config.Config,
-) (*dockertest.Pool, *dockertest.Resource, error) {
-	fmt.Println("initializing test db")
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		return nil, nil, err
-	}
+) (pool *dockertest.Pool, res *dockertest.Resource, err error) {
+	// Set up interrupt catcher
+	quit := make(chan os.Signal, 1)
+	errs := make(chan error)
+	finish := make(chan struct{})
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	err = pool.Client.Ping()
-	if err != nil {
-		return nil, nil, err
-	}
-	fmt.Println("successfully pinged pool")
-
-	testDBResource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "postgres",
-		Tag:        "alpine",
-		Env: []string{
-			"POSTGRES_PASSWORD=" + config.DBPassword,
-			"POSTGRES_USER=" + config.DBUsername,
-			"POSTGRES_PASSWORD=" + config.DBPassword,
-			"POSTGRES_DB=" + config.DBName,
-			"listen_addresses = '*'",
-		},
-	}, func(hc *docker.HostConfig) {
-		hc.AutoRemove = true
-		hc.RestartPolicy = docker.RestartPolicy{
-			Name: "no",
-		}
-	})
-
-	if err != nil {
-		return nil, nil, err
-	}
-	fmt.Println("successfully created db resource")
-
-	if err := pool.Retry(func() error {
-		fmt.Println("pinging...")
+	go func() {
 		var err error
-		conn, err := pgx.Connect(
-			context.Background(),
-			fmt.Sprintf(
-				"postgres://%s:%s@localhost:%s/%s",
-				config.DBUsername,
-				config.DBPassword,
-				testDBResource.GetPort("5432/tcp"),
-				config.DBName,
-			),
-		)
+		fmt.Println("initializing test db")
+		pool, err = dockertest.NewPool("")
 		if err != nil {
-			return err
+			errs <- err
+			return
 		}
 
-		return conn.Ping(context.Background())
-	}); err != nil {
-		return nil, nil, err
+		err = pool.Client.Ping()
+		if err != nil {
+			errs <- err
+			return
+		}
+		fmt.Println("successfully pinged pool")
+
+		res, err = pool.RunWithOptions(&dockertest.RunOptions{
+			Repository: "postgres",
+			Tag:        "alpine",
+			Env: []string{
+				"POSTGRES_PASSWORD=" + config.DBPassword,
+				"POSTGRES_USER=" + config.DBUsername,
+				"POSTGRES_PASSWORD=" + config.DBPassword,
+				"POSTGRES_DB=" + config.DBName,
+				"listen_addresses = '*'",
+			},
+		}, func(hc *docker.HostConfig) {
+			hc.AutoRemove = true
+			hc.RestartPolicy = docker.RestartPolicy{
+				Name: "no",
+			}
+		})
+		if err != nil {
+			errs <- err
+			return
+		}
+		fmt.Println("successfully created db resource")
+
+		if err := pool.Retry(func() error {
+			fmt.Println("pinging...")
+			var err error
+			conn, err := pgx.Connect(
+				context.Background(),
+				fmt.Sprintf(
+					"postgres://%s:%s@localhost:%s/%s",
+					config.DBUsername,
+					config.DBPassword,
+					res.GetPort("5432/tcp"),
+					config.DBName,
+				),
+			)
+			if err != nil {
+				return err
+			}
+
+			return conn.Ping(context.Background())
+		}); err != nil {
+			errs <- err
+			return
+		}
+
+		hostAndPort := res.GetHostPort("5432/tcp")
+		newHostAndPort := strings.Split(hostAndPort, ":")
+		config.DBHost = newHostAndPort[0]
+		config.DBPort = newHostAndPort[1]
+
+		finish <- struct{}{}
+	}()
+
+	select {
+	case <-quit:
+		fmt.Println("User terminated program; cleaning up excess resources")
+		if pool != nil || res != nil {
+			if err := pool.Purge(res); err != nil {
+				log.Fatalf("Could not purge database: %s", err)
+			}
+		}
+		os.Exit(1)
+	case e := <-errs:
+		return nil, nil, e
+	case <-finish:
 	}
 
-	hostAndPort := testDBResource.GetHostPort("5432/tcp")
-	newHostAndPort := strings.Split(hostAndPort, ":")
-	config.DBHost = newHostAndPort[0]
-	config.DBPort = newHostAndPort[1]
-
-	return pool, testDBResource, nil
+	return pool, res, nil
 }
 
 func AutoMigrate(cfg *config.Config) error {
