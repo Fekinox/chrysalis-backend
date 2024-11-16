@@ -4,16 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/formfield"
 	"github.com/Fekinox/chrysalis-backend/internal/genbytes"
+	"github.com/Fekinox/chrysalis-backend/internal/models"
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
-const MAX_TASK_RETRY_ATTEMPTS int = 10
+type CreateTaskParams struct {
+	Fields []formfield.FilledFormField `json:"fields"`
+}
 
 func generateTaskSlug() (string, error) {
 	slug, err := genbytes.GenRandomBytes(4)
@@ -72,131 +73,70 @@ func (dc *ChrysalisController) GetTasksForService(c *gin.Context) {
 
 // Get detailed information about a task
 func (dc *ChrysalisController) GetDetailedTaskInformation(c *gin.Context) {
-	err := dc.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
-		serviceCreator := c.Param("username")
-		serviceSlug := c.Param("servicename")
-		taskSlug := c.Param("taskslug")
+	serviceCreator := c.Param("username")
+	serviceSlug := c.Param("servicename")
+	taskSlug := c.Param("taskslug")
 
-		task, err := s.GetTaskHeader(
-			c.Request.Context(),
-			db.GetTaskHeaderParams{
-				Username: serviceCreator,
-				FormSlug: serviceSlug,
-				TaskSlug: taskSlug,
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		rawFields, err := s.GetFilledFormFields(c.Request.Context(), taskSlug)
-		if err != nil {
-			return err
-		}
-
-		parsedFields := make([]formfield.FilledFormField, len(rawFields))
-
-		for i, f := range rawFields {
-			err = parsedFields[i].FromRow(f)
-			if err != nil {
-				return err
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"taskInfo": task,
-			"fields":   parsedFields,
-		})
-		return nil
+	task, err := models.GetTask(c.Request.Context(), dc.store, models.GetTaskParams{
+		CreatorUsername: serviceCreator,
+		ServiceName:     serviceSlug,
+		TaskName:        taskSlug,
 	})
-
 	if err != nil {
+		if errors.Is(err,
+			errors.Join(
+				models.ErrUserNotFound,
+				models.ErrServiceNotFound,
+				models.ErrFieldsNotFound,
+				models.ErrTaskNotFound,
+			),
+		) {
+			AbortError(c, http.StatusNotFound, err)
+			return
+		}
+
 		AbortError(c, http.StatusInternalServerError, err)
+		return
 	}
+
+	c.JSON(http.StatusOK, task)
 }
 
 // Create an outbound task on a specific service
 func (dc *ChrysalisController) CreateTaskForService(c *gin.Context) {
-	err := dc.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
-		sessionData, _ := GetSessionData(c)
-		serviceCreator := c.Param("username")
-		serviceSlug := c.Param("servicename")
+	sessionData, _ := GetSessionData(c)
+	serviceCreator := c.Param("username")
+	serviceSlug := c.Param("servicename")
 
-		if serviceCreator == "" || serviceSlug == "" {
-			return errors.New("Username or service cannot be empty")
-		}
+	if serviceCreator == "" || serviceSlug == "" {
+		AbortError(c, http.StatusBadRequest, errors.New("Username or service cannot be empty"))
+		return
+	}
 
-		creator, err := s.GetUserByUsername(c.Request.Context(), serviceCreator)
-		if err != nil {
-			return err
-		}
+	var params CreateTaskParams
+	err := c.ShouldBindJSON(&params)
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, err)
+		return
+	}
 
-		form, err := s.GetCurrentFormVersionBySlug(
-			c.Request.Context(),
-			db.GetCurrentFormVersionBySlugParams{
-				Slug:      serviceSlug,
-				CreatorID: creator.ID,
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		var task *db.CreateTaskRow
-		var attempts int
-		for {
-			err := s.BeginFunc(
-				c.Request.Context(),
-				func(loopTx *db.Store) error {
-					taskSlug, err := generateTaskSlug()
-					if err != nil {
-						return err
-					}
-
-					task, err = loopTx.
-						CreateTask(c.Request.Context(), db.CreateTaskParams{
-							FormVersionID: form.FormVersionID,
-							ClientID:      sessionData.UserID,
-							Slug:          taskSlug,
-						})
-
-					return err
-				},
-			)
-
-			var pgErr *pgconn.PgError
-
-			if err == nil {
-				break
-			} else if errors.As(err, &pgErr) {
-				if pgErr.Code != "23505" || pgErr.ConstraintName != "task_slug_unique" {
-					return err
-				}
-			} else {
-				return err
-			}
-
-			attempts++
-
-			if attempts >= MAX_TASK_RETRY_ATTEMPTS {
-				AbortError(c,
-					http.StatusRequestTimeout,
-					fmt.Errorf("Too many retry attempts"),
-				)
-				return err
-			}
-
-			time.Sleep(time.Millisecond * 50)
-		}
-
-		c.JSON(http.StatusCreated, task)
-
-		return nil
+	task, err := models.CreateTask(c.Request.Context(), dc.store, models.CreateTaskParams{
+		CreatorUsername: serviceCreator,
+		FormSlug:        serviceSlug,
+		ClientID:        sessionData.UserID,
+		Fields:          params.Fields,
 	})
-
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
+		return
 	}
+
+	c.Redirect(http.StatusSeeOther,
+		fmt.Sprintf("/api/users/%s/services/%s/tasks/%s",
+			serviceCreator,
+			serviceSlug,
+			task.TaskSlug),
+	)
 }
 
 // Update the status of a task as the owner of a service

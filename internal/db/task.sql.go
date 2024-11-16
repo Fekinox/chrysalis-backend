@@ -187,11 +187,18 @@ FROM
     LEFT JOIN filled_checkbox_fields AS ch_fs USING (task_id, idx)
     LEFT JOIN filled_radio_fields AS r_fs USING (task_id, idx)
     LEFT JOIN filled_text_fields AS t_fs USING (task_id, idx)
+    INNER JOIN form_versions AS fv ON tk.form_version_id = fv.id
 WHERE
-    tk.slug = $1
+    fv.id = $1 AND
+    tk.slug = $2
 ORDER BY
     ffs.idx
 `
+
+type GetFilledFormFieldsParams struct {
+	FormVersionID int64  `json:"form_version_id"`
+	TaskSlug      string `json:"task_slug"`
+}
 
 type GetFilledFormFieldsRow struct {
 	Ftype           FieldType `json:"ftype"`
@@ -201,8 +208,8 @@ type GetFilledFormFieldsRow struct {
 	TextContent     *string   `json:"text_content"`
 }
 
-func (q *Queries) GetFilledFormFields(ctx context.Context, taskSlug string) ([]*GetFilledFormFieldsRow, error) {
-	rows, err := q.db.Query(ctx, getFilledFormFields, taskSlug)
+func (q *Queries) GetFilledFormFields(ctx context.Context, arg GetFilledFormFieldsParams) ([]*GetFilledFormFieldsRow, error) {
+	rows, err := q.db.Query(ctx, getFilledFormFields, arg.FormVersionID, arg.TaskSlug)
 	if err != nil {
 		return nil, err
 	}

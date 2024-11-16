@@ -169,7 +169,10 @@ FROM
     LEFT JOIN filled_checkbox_fields AS ch_fs USING (task_id, idx)
     LEFT JOIN filled_radio_fields AS r_fs USING (task_id, idx)
     LEFT JOIN filled_text_fields AS t_fs USING (task_id, idx)
+    INNER JOIN form_versions AS fv ON tk.form_version_id = fv.id
 WHERE
+    fv.id = sqlc.arg('form_version_id') AND
     tk.slug = sqlc.arg ('task_slug')
 ORDER BY
     ffs.idx;
+    

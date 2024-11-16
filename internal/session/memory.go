@@ -62,7 +62,7 @@ func (sm *MemorySessionManager) GetSessionData(
 
 	data, ok := sm.sessions[key]
 	if !ok {
-		return nil, SessionNotFound
+		return nil, ErrSessionNotFound
 	}
 	return data, nil
 }
@@ -76,7 +76,7 @@ func (sm *MemorySessionManager) SetSessionData(
 
 	_, ok := sm.sessions[key]
 	if !ok {
-		return SessionNotFound
+		return ErrSessionNotFound
 	}
 	sm.sessions[key] = data
 
@@ -89,7 +89,7 @@ func (sm *MemorySessionManager) RefreshSession(key string) (string, error) {
 
 	_, ok := sm.sessions[key]
 	if !ok {
-		return "", SessionNotFound
+		return "", ErrSessionNotFound
 	}
 
 	newKey := uuid.NewString()
@@ -113,7 +113,7 @@ func (sm *MemorySessionManager) EndSession(key string) error {
 
 	_, ok := sm.sessions[key]
 	if !ok {
-		return SessionNotFound
+		return ErrSessionNotFound
 	}
 
 	delete(sm.sessions, key)

@@ -1,6 +1,7 @@
 package formfield
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
@@ -13,7 +14,12 @@ type FilledFormField struct {
 }
 
 type FilledFormFieldData interface {
-	filledFormFieldData()
+	Create(
+		ctx context.Context,
+		db *db.Store,
+		taskID int64,
+		idx int32,
+	) error
 }
 
 type FilledCheckboxFieldData struct {
@@ -27,10 +33,6 @@ type FilledRadioFieldData struct {
 type FilledTextFieldData struct {
 	Content string `json:"content"`
 }
-
-func (*FilledCheckboxFieldData) filledFormFieldData() {}
-func (*FilledRadioFieldData) filledFormFieldData()    {}
-func (*FilledTextFieldData) filledFormFieldData()     {}
 
 func (ff *FilledFormField) FromRow(ffr *db.GetFilledFormFieldsRow) error {
 	ff.FieldType = ffr.Ftype
@@ -113,4 +115,42 @@ func (ff *FilledFormField) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (d *FilledCheckboxFieldData) Create(
+	ctx context.Context,
+	s *db.Store,
+	taskID int64, idx int32) error {
+	_, err := s.AddCheckboxFieldToTask(ctx, db.AddCheckboxFieldToTaskParams{
+		TaskID:          taskID,
+		Idx:             idx,
+		SelectedOptions: d.SelectedOptions,
+	})
+
+	return err
+}
+
+func (d *FilledRadioFieldData) Create(
+	ctx context.Context,
+	s *db.Store,
+	taskID int64, idx int32) error {
+	_, err := s.AddRadioFieldToTask(ctx, db.AddRadioFieldToTaskParams{
+		TaskID:         taskID,
+		Idx:            idx,
+		SelectedOption: &d.SelectedOption,
+	})
+
+	return err
+}
+
+func (d *FilledTextFieldData) Create(
+	ctx context.Context,
+	s *db.Store,
+	taskID int64, idx int32) error {
+	_, err := s.AddTextFieldToTask(ctx, db.AddTextFieldToTaskParams{
+		TaskID:  taskID,
+		Idx:     idx,
+		Content: &d.Content,
+	})
+	return err
 }
