@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Fekinox/chrysalis-backend/internal/config"
 	"github.com/Fekinox/chrysalis-backend/internal/db"
@@ -517,4 +518,153 @@ func (dc *ChrysalisController) GetServiceDetail(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "serviceDetail.html.tmpl", form)
+}
+
+func (dc *ChrysalisController) ServiceCreator(c *gin.Context) {
+	c.HTML(http.StatusOK, "serviceCreator.html.tmpl", nil)
+}
+
+func (dc *ChrysalisController) LoginForm(c *gin.Context) {
+	c.HTML(http.StatusOK, "login.html.tmpl", nil)
+}
+
+func (dc *ChrysalisController) RegisterForm(c *gin.Context) {
+	c.HTML(http.StatusOK, "register.html.tmpl", nil)
+}
+
+func (dc *ChrysalisController) HandleLogin(c *gin.Context) {
+	err := c.Request.ParseForm()
+	if err != nil {
+		c.Redirect(http.StatusSeeOther, "/app/login")
+		return
+	}
+	username, ok := c.GetPostForm("username")
+	if !ok {
+		c.HTML(http.StatusOK, "login.html.tmpl", gin.H{
+			"errors": "Username field missing",
+		})
+		return
+	}
+	password, ok := c.GetPostForm("password")
+	if !ok {
+		c.HTML(http.StatusOK, "login.html.tmpl", gin.H{
+			"errors": "Password field missing",
+		})
+		return
+	}
+
+	// Retrieve user from database
+	u, err := dc.store.GetUserByUsername(
+		c.Request.Context(),
+		username,
+	)
+	if err != nil {
+		c.HTML(http.StatusOK, "login.html.tmpl", gin.H{
+			"errors": "Invalid username or password",
+		})
+		return
+	}
+
+	// Compare password with hashed version
+	ok, err = ComparePasswordAndHash(password, u.Password)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	} else if !ok {
+		c.HTML(http.StatusOK, "login.html.tmpl", gin.H{
+			"errors": "Invalid username or password",
+		})
+		return
+	}
+
+	// Create session
+	sessionKey, err := dc.sessionManager.NewSession(u.Username, u.ID)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.SetCookie(
+		"chrysalis-session-key",
+		string(sessionKey),
+		60*60*24,
+		"/",
+		"localhost",
+		false,
+		true,
+	)
+
+	c.Redirect(http.StatusSeeOther, fmt.Sprintf("/app/%s/services", username))
+}
+
+func (dc *ChrysalisController) HandleRegister(c *gin.Context) {
+	err := c.Request.ParseForm()
+	if err != nil {
+		c.Redirect(http.StatusSeeOther, "/app/register")
+		return
+	}
+	username, ok := c.GetPostForm("username")
+	if !ok {
+		c.HTML(http.StatusOK, "register.html.tmpl", gin.H{
+			"errors": "Username field missing",
+		})
+		return
+	}
+	password, ok := c.GetPostForm("password")
+	if !ok {
+		c.HTML(http.StatusOK, "register.html.tmpl", gin.H{
+			"errors": "Password field missing",
+		})
+		return
+	}
+
+	username = strings.TrimSpace(username)
+	password = strings.TrimSpace(password)
+
+	passHash, err := HashPassword(password, DefaultParams())
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	userParams := db.CreateUserParams{
+		Username: username,
+		Password: passHash,
+	}
+
+	u, err := dc.store.CreateUser(c.Request.Context(), userParams)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		if pgErr.Code == "23505" {
+			c.HTML(http.StatusOK, "register.html.tmpl", gin.H{
+				"errors": ErrUserAlreadyExists.Error(),
+			})
+			return
+		} else {
+			AbortError(c, http.StatusInternalServerError, pgErr)
+		}
+		return
+	} else if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Create initial user session
+	sessionKey, err := dc.sessionManager.NewSession(u.Username, u.ID)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.SetCookie(
+		"chrysalis-session-key",
+		sessionKey,
+		60*60*24,
+		"/",
+		"localhost",
+		false,
+		true,
+	)
+
+	c.Redirect(http.StatusSeeOther, fmt.Sprintf("/app/%s/services", username))
 }

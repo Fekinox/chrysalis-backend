@@ -1,0 +1,24 @@
+{{define "title"}}Hello World{{end}}
+{{define "content"}}
+  <h1>Register</h1> 
+  {{with .errors}}
+  <div style="
+    padding: 0.4em 0.8em;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-secondary);
+    width: var(--width-card-wide);
+    margin: 0.4em;
+  ">
+    {{.}}
+  </div>
+  {{end}}
+  <form action="/app/register" method="post">
+    <label for="username">Username</label>
+    <input type="text" id="username" name="username" required>
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required>
+    <input type="submit" value="Sign in">
+    <p>Already have an account? <a href="/app/login">Log in to existing account</a></p>
+  </form>
+{{end}}
+{{template "skeleton" .}}
