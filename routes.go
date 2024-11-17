@@ -56,8 +56,12 @@ func (dc *ChrysalisController) MountHandlers() {
 	app.GET("/:username/services/:servicename/edit", dc.GetServiceDetail)
 	app.GET("/new-service", dc.ServiceCreator)
 	app.GET("/:username/services/:servicename/tasks/:taskname", dc.DummyTemplateHandler)
+
 	app.GET("/login", dc.LoginForm)
-	app.GET("/register", dc.RegisterForm)
 	app.POST("/login", dc.HandleLogin)
+
+	app.GET("/register", dc.RegisterForm)
 	app.POST("/register", dc.HandleRegister)
+
+	app.GET("/dashboard", dc.UserDashboard)
 }

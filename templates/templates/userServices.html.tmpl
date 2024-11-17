@@ -1,6 +1,9 @@
-{{define "title"}}{{.user}}'s Services...{{end}}
-{{define "content"}}
+{{define "title"}}{{.user}}'s Services{{end}}
+{{define "header"}}
   <h1>{{.user}}'s Services</h1>
+{{end}}
+{{define "content"}}
+  {{template "navbar" .}}
   <ul>
   {{ range .services }}
     <li>

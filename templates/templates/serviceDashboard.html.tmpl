@@ -1,5 +1,13 @@
-{{define "title"}}Hello World{{end}}
+{{define "title"}}Dashboard{{end}}
+{{define "header"}}
+  <h1>Dashboard</h1>
+  {{template "navbar" .}}
+{{end}}
 {{define "content"}}
-  <h1>Hello World!</h1> 
+  <h2>Your Tasks</h2>
+  <hr>
+  <h2>Your Services</h2>
+  <hr>
+  <a href="/app/new-service">Create New Service</a>
 {{end}}
 {{template "skeleton" .}}
