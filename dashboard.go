@@ -26,16 +26,19 @@ func (dc *ChrysalisController) ServiceDashboard(c *gin.Context) {
 		var err error
 		form, err = models.GetServiceForm(c.Request.Context(), s, models.ServiceFormParams{
 			Username: c.Param("username"),
-			Service: c.Param("servicename"),
+			Service:  c.Param("servicename"),
 		})
 		if err != nil {
 			return err
 		}
 
-		taskHeaders, err = s.GetServiceTasksBySlug(c.Request.Context(), db.GetServiceTasksBySlugParams{
-			CreatorUsername: c.Param("username"),
-			FormSlug: c.Param("servicename"),
-		})
+		taskHeaders, err = s.GetServiceTasksBySlug(
+			c.Request.Context(),
+			db.GetServiceTasksBySlugParams{
+				CreatorUsername: c.Param("username"),
+				FormSlug:        c.Param("servicename"),
+			},
+		)
 		if err != nil {
 			return err
 		}
@@ -50,6 +53,6 @@ func (dc *ChrysalisController) ServiceDashboard(c *gin.Context) {
 	c.HTML(http.StatusOK, "serviceDashboard.html.tmpl", gin.H{
 		"session": sessionData,
 		"service": form,
-		"tasks": taskHeaders,
+		"tasks":   taskHeaders,
 	})
 }

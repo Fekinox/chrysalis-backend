@@ -128,8 +128,8 @@ func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
 }
 
 // Redirects non-HTMX requests to the given URI.
-//FIXME: cannot handle path parameters
-func HTMXRedirect(dests... string) gin.HandlerFunc {
+// FIXME: cannot handle path parameters
+func HTMXRedirect(dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.GetHeader("HX_Request") == "true" {
 			c.Next()
@@ -145,7 +145,7 @@ func HTMXRedirect(dests... string) gin.HandlerFunc {
 }
 
 // Redirect user to given URL, reusing path params if necessary.
-func RedirectIfNotLoggedIn(sm session.Manager, dests... string) gin.HandlerFunc {
+func RedirectIfNotLoggedIn(sm session.Manager, dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if _, ok := GetSessionData(c); !ok {
 			if fb, err := ParseFallbackURLs(c, dests...); err == nil {
@@ -237,7 +237,7 @@ func ParseURL(c *gin.Context, path string) (string, error) {
 	return strings.Join(tokens, "/"), nil
 }
 
-func ParseFallbackURLs(c *gin.Context, paths... string) (string, error) {
+func ParseFallbackURLs(c *gin.Context, paths ...string) (string, error) {
 	for _, p := range paths {
 		res, err := ParseURL(c, p)
 		if err != nil {

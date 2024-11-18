@@ -542,11 +542,11 @@ func (dc *ChrysalisController) CreateNewService(c *gin.Context) {
 		c.Request.Context(),
 		dc.store,
 		models.CreateServiceVersionParams{
-			CreatorID: sessionData.UserID,
+			CreatorID:   sessionData.UserID,
 			ServiceSlug: spec.Slug,
-			Title: spec.Title,
+			Title:       spec.Title,
 			Description: spec.Description,
-			Fields: spec.Fields,
+			Fields:      spec.Fields,
 		},
 	)
 
