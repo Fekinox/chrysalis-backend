@@ -51,10 +51,25 @@ func (dc *ChrysalisController) MountHandlers() {
 	app.Use(SessionKey(dc.sessionManager))
 	app.GET("/helloworld", dc.DummyTemplateHandler)
 	app.GET("/:username/services", dc.GetUserServicesHTML)
-	app.GET("/:username/services/:servicename/dashboard", dc.GetServiceDetail)
-	app.GET("/:username/services/:servicename/form", dc.GetServiceDetail)
-	app.GET("/:username/services/:servicename/edit", dc.GetServiceDetail)
-	app.GET("/new-service", dc.ServiceCreator)
+	app.GET("/:username/services/:servicename/dashboard", dc.ServiceDashboard)
+	app.GET(
+		"/:username/services/:servicename/form",
+		RedirectToLogin(dc.sessionManager),
+		dc.GetServiceDetail,
+	)
+	app.GET("/:username/services/:servicename/edit",
+		RedirectToLogin(dc.sessionManager),
+		dc.GetServiceDetail,
+	)
+
+	app.GET("/new-service",
+		RedirectToLogin(dc.sessionManager),
+		dc.ServiceCreator,
+	)
+	app.POST("/new-service",
+		HasSessionKey(dc.sessionManager),
+		dc.CreateNewService,
+	)
 	app.GET("/:username/services/:servicename/tasks/:taskname", dc.DummyTemplateHandler)
 
 	app.GET("/login", dc.LoginForm)
@@ -63,5 +78,5 @@ func (dc *ChrysalisController) MountHandlers() {
 	app.GET("/register", dc.RegisterForm)
 	app.POST("/register", dc.HandleRegister)
 
-	app.GET("/dashboard", dc.UserDashboard)
+	app.GET("/dashboard", RedirectToLogin(dc.sessionManager), dc.UserDashboard)
 }

@@ -28,6 +28,7 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('editor', () => ({
     title: 'Untitled form',
     description: '',
+    slug: '',
     fields: [],
     counter: 0,
 
@@ -163,8 +164,51 @@ document.addEventListener('alpine:init', () => {
       this.fields[fieldIdx].options[optIdx].value = cleanedValue
     },
 
-    submit() {
-      console.log(this.fields.map((x) => x))
+    async submit() {
+      await fetch("/app/new-service", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+              "title": this.title,
+              "description": this.description,
+              "slug": this.slug,
+              "fields": this.fields.map((f) => {
+                res = {
+                  type: f.type,
+                  prompt: f.prompt,
+                  required: f.required,
+                }
+                switch(f.type) {
+                  case 'checkbox':
+                    res.data = {
+                      options: f.options.map((o) => o.value)
+                    }
+                    break
+                  case 'radio':
+                    res.data = {
+                      options: f.options.map((o) => o.value)
+                    }
+                    break
+                  case 'text':
+                    res.data = {
+                      'paragraph': false
+                    }
+                    break
+                  case 'paragraph':
+                    res.type = 'text'
+                    res.data = {
+                      'paragraph': true
+                    }
+                    break
+                  default:
+                    throw new Error(`Invalid type ${f.type}`)
+                }
+                return res
+              })
+          })
+      });
     },
   }))
 })

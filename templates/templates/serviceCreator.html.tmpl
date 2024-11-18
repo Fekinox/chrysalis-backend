@@ -45,6 +45,11 @@
           type="text"
           placeholder="Form description"
           x-model="description">
+          <input
+          type="text"
+          placeholder="Form slug"
+          pattern="[-a-zA-Z0-9]*"
+          x-model="slug">
         </div>
       </div>
       <div x-ref="fieldList"

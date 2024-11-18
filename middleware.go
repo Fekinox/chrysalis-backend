@@ -25,7 +25,9 @@ var (
 
 	TimeoutError = errors.New("Timeout")
 
-	NotLoggedInError = errors.New("Not logged in")
+	ErrNotLoggedIn = errors.New("Not logged in")
+
+	ErrMissingParam = errors.New("Param does not exist")
 )
 
 // Extracts the token from the given header in the request.
@@ -125,6 +127,43 @@ func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
+// Redirects non-HTMX requests to the given URI.
+//FIXME: cannot handle path parameters
+func HTMXRedirect(dests... string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetHeader("HX_Request") == "true" {
+			c.Next()
+		} else {
+			if fb, err := ParseFallbackURLs(c, dests...); err == nil {
+				c.Redirect(http.StatusSeeOther, fb)
+				c.Abort()
+			} else {
+				AbortError(c, http.StatusBadRequest, err)
+			}
+		}
+	}
+}
+
+// Redirect user to given URL, reusing path params if necessary.
+func RedirectIfNotLoggedIn(sm session.Manager, dests... string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if _, ok := GetSessionData(c); !ok {
+			if fb, err := ParseFallbackURLs(c, dests...); err == nil {
+				c.Redirect(http.StatusSeeOther, fb)
+				c.Abort()
+			} else {
+				AbortError(c, http.StatusBadRequest, err)
+			}
+		} else {
+			c.Next()
+		}
+	}
+}
+
+func RedirectToLogin(sm session.Manager) gin.HandlerFunc {
+	return RedirectIfNotLoggedIn(sm, "/app/login")
+}
+
 // Reads the session key cookie from the client and adds it to the context
 func SessionKey(sm session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -162,7 +201,7 @@ func HasSessionKey(sm session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, ok := GetSessionData(c)
 		if !ok {
-			AbortError(c, http.StatusForbidden, NotLoggedInError)
+			AbortError(c, http.StatusForbidden, ErrNotLoggedIn)
 			return
 		}
 
@@ -179,4 +218,32 @@ func AbortError(c *gin.Context, code int, err error) {
 	c.Status(code)
 	c.Error(err)
 	c.Abort()
+}
+
+// Given the gin context which has already parsed path parameters, attempt to parse the given URL.
+func ParseURL(c *gin.Context, path string) (string, error) {
+	tokens := strings.Split(path, "/")
+	for i := 0; i < len(tokens); i++ {
+		p, found := strings.CutPrefix(tokens[i], ":")
+		if found {
+			param := c.Param(p)
+			if param == "" {
+				return "", fmt.Errorf("%w: %s", ErrMissingParam, p)
+			}
+			tokens[i] = param
+		}
+	}
+
+	return strings.Join(tokens, "/"), nil
+}
+
+func ParseFallbackURLs(c *gin.Context, paths... string) (string, error) {
+	for _, p := range paths {
+		res, err := ParseURL(c, p)
+		if err != nil {
+			continue
+		}
+		return res, nil
+	}
+	return "", errors.New("Could not resolve fallback URLs")
 }

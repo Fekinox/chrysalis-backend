@@ -524,6 +524,41 @@ func (dc *ChrysalisController) ServiceCreator(c *gin.Context) {
 	c.HTML(http.StatusOK, "serviceCreator.html.tmpl", nil)
 }
 
+func (dc *ChrysalisController) CreateNewService(c *gin.Context) {
+	sessionData, ok := GetSessionData(c)
+	if !ok {
+		AbortError(c, http.StatusUnauthorized, ErrNotLoggedIn)
+		return
+	}
+
+	var spec NewServiceSpec
+	err := c.ShouldBindJSON(&spec)
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	f, err := models.CreateServiceForm(
+		c.Request.Context(),
+		dc.store,
+		models.CreateServiceVersionParams{
+			CreatorID: sessionData.UserID,
+			ServiceSlug: spec.Slug,
+			Title: spec.Title,
+			Description: spec.Description,
+			Fields: spec.Fields,
+		},
+	)
+
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Redirect(http.StatusSeeOther,
+		fmt.Sprintf("/app/%s/services/%s/dashboard", sessionData.Username, f.Slug))
+}
+
 func (dc *ChrysalisController) LoginForm(c *gin.Context) {
 	c.HTML(http.StatusOK, "login.html.tmpl", nil)
 }
