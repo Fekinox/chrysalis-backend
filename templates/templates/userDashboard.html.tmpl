@@ -8,6 +8,17 @@
   <hr>
   <h2>Your Services</h2>
   <hr>
+  <ul>
+    {{with $outer := .}}
+      {{range .services}}
+        <li>
+          <h3>{{.Name}}</h3>
+          <h4><a href="/app/{{$outer.session.Username}}/services/{{.Slug}}/dashboard">{{.Slug}}</a></h4>
+          <p>{{.Description}}</p>
+        </li>
+      {{end}}
+    {{end}}
+  </ul>
   <a href="/app/new-service">Create New Service</a>
 {{end}}
 {{template "skeleton" .}}

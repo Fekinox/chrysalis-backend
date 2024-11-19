@@ -12,8 +12,15 @@ import (
 func (dc *ChrysalisController) UserDashboard(c *gin.Context) {
 	sessionData, _ := GetSessionData(c)
 
+	services, err := dc.store.GetUserFormHeaders(c.Request.Context(), sessionData.UserID)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	c.HTML(http.StatusOK, "userDashboard.html.tmpl", gin.H{
-		"session": sessionData,
+		"session":  sessionData,
+		"services": services,
 	})
 }
 
