@@ -1,3 +1,4 @@
 .env
 _postgres_data
 .format
+.tmux

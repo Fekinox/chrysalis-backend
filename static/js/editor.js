@@ -165,50 +165,60 @@ document.addEventListener('alpine:init', () => {
     },
 
     async submit() {
-      await fetch("/app/new-service", {
+      try {
+        resp = await fetch("/app/new-service", {
           method: "POST",
+          redirect: "follow",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-              "title": this.title,
-              "description": this.description,
-              "slug": this.slug,
-              "fields": this.fields.map((f) => {
-                res = {
-                  type: f.type,
-                  prompt: f.prompt,
-                  required: f.required,
-                }
-                switch(f.type) {
-                  case 'checkbox':
-                    res.data = {
-                      options: f.options.map((o) => o.value)
-                    }
-                    break
-                  case 'radio':
-                    res.data = {
-                      options: f.options.map((o) => o.value)
-                    }
-                    break
-                  case 'text':
-                    res.data = {
-                      'paragraph': false
-                    }
-                    break
-                  case 'paragraph':
-                    res.type = 'text'
-                    res.data = {
-                      'paragraph': true
-                    }
-                    break
-                  default:
-                    throw new Error(`Invalid type ${f.type}`)
-                }
-                return res
-              })
+            "title": this.title,
+            "description": this.description,
+            "slug": this.slug,
+            "fields": this.fields.map((f) => {
+              res = {
+                type: f.type,
+                prompt: f.prompt,
+                required: f.required,
+              }
+              switch(f.type) {
+                case 'checkbox':
+                  res.data = {
+                    options: f.options.map((o) => o.value)
+                  }
+                  break
+                case 'radio':
+                  res.data = {
+                    options: f.options.map((o) => o.value)
+                  }
+                  break
+                case 'text':
+                  res.data = {
+                    'paragraph': false
+                  }
+                  break
+                case 'paragraph':
+                  res.type = 'text'
+                  res.data = {
+                    'paragraph': true
+                  }
+                  break
+                default:
+                  throw new Error(`Invalid type ${f.type}`)
+              }
+              return res
+            })
           })
-      });
+        });
+
+        console.log(resp)
+        if (resp.redirected) {
+          window.location.replace(resp.url);
+        }
+      } catch(e) {
+        throw new Error(e)
+      }
     },
   }))
 })
