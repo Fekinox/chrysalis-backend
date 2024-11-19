@@ -1,4 +1,14 @@
 {{define "title"}}{{.service.Name}} Dashboard{{end}}
+{{define "scripts"}}
+  <script>
+  async function updateStatus(task, status) {
+    await fetch(`/app/{{.params.username}}/services/{{.params.servicename}}/tasks/${task}?status=${status}`, {
+      method: "PUT",
+    });
+    htmx.trigger(document.getElementById("tabarea"), "refresh")
+  }
+  </script>
+{{end}}
 {{define "header"}}
   <h1>{{.service.Name}} Dashboard</h1>
   {{template "navbar" .}}
@@ -6,5 +16,14 @@
 {{define "content"}}
   <h2>Tasks</h2>
   <hr>
+  <section
+    style="flex-direction: column"
+    id="tabarea"
+    hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/pending"
+    hx-trigger="load delay:100ms, refresh"
+    hx-target="#tabarea"
+    hx-swap="innerHTML"
+  >
+  </section>
 {{end}}
 {{template "skeleton" .}}

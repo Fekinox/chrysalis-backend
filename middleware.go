@@ -131,7 +131,7 @@ func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
 // FIXME: cannot handle path parameters
 func HTMXRedirect(dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.GetHeader("HX_Request") == "true" {
+		if c.GetHeader("HX-Request") == "true" {
 			c.Next()
 		} else {
 			if fb, err := ParseFallbackURLs(c, dests...); err == nil {

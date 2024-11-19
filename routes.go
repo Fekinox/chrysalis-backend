@@ -51,7 +51,19 @@ func (dc *ChrysalisController) MountHandlers() {
 	app.Use(SessionKey(dc.sessionManager))
 	app.GET("/helloworld", dc.DummyTemplateHandler)
 	app.GET("/:username/services", dc.GetUserServicesHTML)
+
 	app.GET("/:username/services/:servicename/dashboard", dc.ServiceDashboard)
+	app.GET(
+		"/:username/services/:servicename/dashboard/tabs/:status",
+		HTMXRedirect("/app/:username/services/:servicename"),
+		dc.ServiceDashboardTab,
+	)
+	app.PUT(
+		"/:username/services/:servicename/tasks/:taskname",
+		HasSessionKey(dc.sessionManager),
+		dc.UpdateTaskDashboard,
+	)
+
 	app.GET(
 		"/:username/services/:servicename/form",
 		RedirectToLogin(dc.sessionManager),
