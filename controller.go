@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"text/template"
 	"time"
 
@@ -64,6 +65,9 @@ func CreateController(cfg config.Config) (*ChrysalisServer, error) {
 	render.Funcs(template.FuncMap{
 		"timeFormatUnix": func(t time.Time) string {
 			return t.Format(time.UnixDate)
+		},
+		"contains": func(s string, strings []string) bool {
+			return slices.Contains(strings, s)
 		},
 	})
 	render.AddIncludes("templates/includes")

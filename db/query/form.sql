@@ -235,3 +235,19 @@ WHERE
                     l_t_fs.paragraph = r_t_fs.paragraph
             END
     );
+
+-- name: GetFormVersionById :one
+SELECT
+  forms.id,
+  forms.creator_id,
+  forms.slug,
+  fv.id AS form_version_id,
+  fv.name,
+  fv.description,
+  forms.created_at,
+  fv.created_at AS updated_at
+FROM
+  form_versions AS fv
+  INNER JOIN forms ON fv.form_id = forms.id
+WHERE
+  fv.id = sqlc.arg('form_version_id');

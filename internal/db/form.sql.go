@@ -502,6 +502,50 @@ func (q *Queries) GetFormHeaderBySlug(ctx context.Context, arg GetFormHeaderBySl
 	return &i, err
 }
 
+const getFormVersionById = `-- name: GetFormVersionById :one
+SELECT
+  forms.id,
+  forms.creator_id,
+  forms.slug,
+  fv.id AS form_version_id,
+  fv.name,
+  fv.description,
+  forms.created_at,
+  fv.created_at AS updated_at
+FROM
+  form_versions AS fv
+  INNER JOIN forms ON fv.form_id = forms.id
+WHERE
+  fv.id = $1
+`
+
+type GetFormVersionByIdRow struct {
+	ID            int64              `json:"id"`
+	CreatorID     uuid.UUID          `json:"creator_id"`
+	Slug          string             `json:"slug"`
+	FormVersionID int64              `json:"form_version_id"`
+	Name          string             `json:"name"`
+	Description   string             `json:"description"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetFormVersionById(ctx context.Context, formVersionID int64) (*GetFormVersionByIdRow, error) {
+	row := q.db.QueryRow(ctx, getFormVersionById, formVersionID)
+	var i GetFormVersionByIdRow
+	err := row.Scan(
+		&i.ID,
+		&i.CreatorID,
+		&i.Slug,
+		&i.FormVersionID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return &i, err
+}
+
 const getUserFormHeaders = `-- name: GetUserFormHeaders :many
 SELECT
     forms.id,

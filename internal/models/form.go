@@ -12,10 +12,11 @@ import (
 )
 
 var (
-	ErrUserNotFound    = errors.New("User not found")
-	ErrServiceNotFound = errors.New("Service not found")
-	ErrFieldsNotFound  = errors.New("Fields not found")
-	ErrUnchangedForm   = errors.New("Form is unchanged")
+	ErrUserNotFound        = errors.New("User not found")
+	ErrServiceNotFound     = errors.New("Service not found")
+	ErrFormVersionNotFound = errors.New("Form version not found")
+	ErrFieldsNotFound      = errors.New("Fields not found")
+	ErrUnchangedForm       = errors.New("Form is unchanged")
 )
 
 type ServiceForm struct {
@@ -41,6 +42,51 @@ type CreateServiceVersionParams struct {
 	Title       string
 	Description string
 	Fields      []formfield.FormField
+}
+
+func GetServiceFormVersion(
+	ctx context.Context,
+	d *db.Store,
+	formVersionId int64,
+) (form *ServiceForm, err error) {
+	err = d.BeginFunc(ctx, func(stx *db.Store) error {
+		service, err := stx.GetFormVersionById(ctx, formVersionId)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrServiceNotFound, formVersionId)
+		}
+
+		rawFields, err := stx.GetFormFields(
+			ctx,
+			service.FormVersionID,
+		)
+		if err != nil {
+			return ErrFieldsNotFound
+		}
+
+		parsedFields := make([]formfield.FormField, len(rawFields))
+
+		for i, f := range rawFields {
+			err = parsedFields[i].FromRow(f)
+			if err != nil {
+				return err
+			}
+		}
+
+		form = &ServiceForm{
+			FormID:        service.ID,
+			CreatorID:     service.CreatorID,
+			Slug:          service.Slug,
+			FormVersionID: service.FormVersionID,
+			Name:          service.Name,
+			Description:   service.Description,
+			CreatedAt:     service.CreatedAt,
+			UpdatedAt:     service.UpdatedAt,
+			Fields:        parsedFields,
+		}
+
+		return nil
+	})
+	return form, err
 }
 
 func GetServiceForm(

@@ -32,6 +32,7 @@ type Querier interface {
 	GetFilledFormFields(ctx context.Context, arg GetFilledFormFieldsParams) ([]*GetFilledFormFieldsRow, error)
 	GetFormFields(ctx context.Context, formVersionID int64) ([]*GetFormFieldsRow, error)
 	GetFormHeaderBySlug(ctx context.Context, arg GetFormHeaderBySlugParams) (*GetFormHeaderBySlugRow, error)
+	GetFormVersionById(ctx context.Context, formVersionID int64) (*GetFormVersionByIdRow, error)
 	GetInboundTasks(ctx context.Context, creatorUsername string) ([]*GetInboundTasksRow, error)
 	GetOutboundTasks(ctx context.Context, clientUsername string) ([]*GetOutboundTasksRow, error)
 	GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasksBySlugParams) ([]*GetServiceTasksBySlugRow, error)

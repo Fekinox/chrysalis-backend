@@ -52,7 +52,7 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 		HasSessionKey(mc.con.sessionManager),
 		mc.CreateNewService,
 	)
-	app.GET("/:username/services/:servicename/tasks/:taskname", DummyTemplateHandler)
+	app.GET("/:username/services/:servicename/tasks/:taskname", mc.TaskDetail)
 
 	app.GET("/login", mc.LoginForm)
 	app.POST("/login", mc.HandleLogin)
@@ -209,16 +209,16 @@ func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 
 func (mc *MainController) UpdateTask(c *gin.Context) {
 	serviceCreator := c.Param("username")
-	serviceSlug := c.Param("servicename")
-	taskSlug := c.Param("taskname")
+	serviceName := c.Param("servicename")
+	taskName := c.Param("taskname")
 
 	n, err := mc.con.store.UpdateTaskStatus(
 		c.Request.Context(),
 		db.UpdateTaskStatusParams{
 			Status:   db.TaskStatus(c.Query("status")),
 			Creator:  serviceCreator,
-			FormSlug: serviceSlug,
-			TaskSlug: taskSlug,
+			FormSlug: serviceName,
+			TaskSlug: taskName,
 		},
 	)
 	if err != nil {
@@ -230,6 +230,38 @@ func (mc *MainController) UpdateTask(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (mc *MainController) TaskDetail(c *gin.Context) {
+	serviceCreator := c.Param("username")
+	serviceName := c.Param("servicename")
+	taskName := c.Param("taskname")
+
+	task, err := models.GetTask(c.Request.Context(), mc.con.store, models.GetTaskParams{
+		CreatorUsername: serviceCreator,
+		ServiceName:     serviceName,
+		TaskName:        taskName,
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	form, err := models.GetServiceFormVersion(c.Request.Context(), mc.con.store, task.FormVersionID)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.HTML(http.StatusOK, "taskDetail.html.tmpl", gin.H{
+		"form": form,
+		"task": task,
+		"params": gin.H{
+			"username": serviceCreator,
+			"service":  serviceName,
+			"task":     taskName,
+		},
+	})
 }
 
 func (mc *MainController) ServiceDetail(c *gin.Context) {
