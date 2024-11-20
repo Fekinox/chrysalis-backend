@@ -1,0 +1,13 @@
+{{define "title"}}Healthcheck{{end}}
+{{define "scripts"}}
+{{end}}
+{{define "header"}}
+  <h1>Healthcheck<h1>
+{{end}}
+{{define "content"}}
+  <section
+    hx-get="/healthcheck-inner"
+    hx-trigger="load, every 1s">
+  </section>
+{{end}}
+{{template "skeleton" .}}

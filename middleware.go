@@ -102,7 +102,7 @@ func Delay(timeout time.Duration) gin.HandlerFunc {
 }
 
 // Handles all errors raised by event handlers and middleware.
-func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
+func ErrorHandler(cfg *config.Config, renderer ErrorRenderer) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
@@ -117,7 +117,7 @@ func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
 			errList[i] = ginErr.Error()
 		}
 
-		// Only show errors if either we are in dev mode or if the error is not
+		// Only show detailed errors if either we are in dev mode or if the error is not
 		// an internal error (error code >= 500)
 		if cfg.Environment == "dev" || c.Writer.Status() < 500 {
 			c.JSON(-1, gin.H{"errors": errList})
@@ -127,19 +127,23 @@ func ErrorHandler(cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
+type ErrorRenderer func(c *gin.Context, data any)
+
+func JSONErrorRenderer(c *gin.Context, data any) {
+	c.JSON(-1, data)
+}
+
+func HTMLErrorRenderer(c *gin.Context, data any) {
+	c.HTML(-1, "errorPage.html.tmpl", data)
+}
+
 // Redirects non-HTMX requests to the given URI.
-// FIXME: cannot handle path parameters
 func HTMXRedirect(dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.GetHeader("HX-Request") == "true" {
 			c.Next()
 		} else {
-			if fb, err := ParseFallbackURLs(c, dests...); err == nil {
-				c.Redirect(http.StatusSeeOther, fb)
-				c.Abort()
-			} else {
-				AbortError(c, http.StatusBadRequest, err)
-			}
+			ContextRedirect(c, http.StatusSeeOther, dests...)
 		}
 	}
 }
@@ -147,15 +151,10 @@ func HTMXRedirect(dests ...string) gin.HandlerFunc {
 // Redirect user to given URL, reusing path params if necessary.
 func RedirectIfNotLoggedIn(sm session.Manager, dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if _, ok := GetSessionData(c); !ok {
-			if fb, err := ParseFallbackURLs(c, dests...); err == nil {
-				c.Redirect(http.StatusSeeOther, fb)
-				c.Abort()
-			} else {
-				AbortError(c, http.StatusBadRequest, err)
-			}
-		} else {
+		if _, ok := GetSessionData(c); ok {
 			c.Next()
+		} else {
+			ContextRedirect(c, http.StatusSeeOther, dests...)
 		}
 	}
 }
@@ -246,4 +245,14 @@ func ParseFallbackURLs(c *gin.Context, paths ...string) (string, error) {
 		return res, nil
 	}
 	return "", errors.New("Could not resolve fallback URLs")
+}
+
+func ContextRedirect(c *gin.Context, code int, paths ...string) {
+	dest, err := ParseFallbackURLs(c, paths...)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	} else {
+		c.Redirect(code, dest)
+	}
 }

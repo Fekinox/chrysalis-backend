@@ -44,6 +44,15 @@ func main() {
 	}
 	defer dc.Close()
 
+	_, err = NewJSONAPIController(dc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = NewMainController(dc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	dc.MountHandlers()
 
 	addr := fmt.Sprintf(":%s", config.Port)

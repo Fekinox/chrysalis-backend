@@ -1,7 +1,6 @@
 package session
 
 import (
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,7 +10,6 @@ import (
 // it only recognizes sessions that connect to the same machine, so this is not
 // ideal for use in production.
 type MemorySessionManager struct {
-	mu               sync.RWMutex
 	sessions         map[string]*SessionData
 	sessionKeyLength int
 }
@@ -27,9 +25,6 @@ func (sm *MemorySessionManager) NewSession(
 	username string,
 	id uuid.UUID,
 ) (string, error) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
 	key, err := GenerateSessionKey()
 	if err != nil {
 		return "", err
@@ -57,9 +52,6 @@ func (sm *MemorySessionManager) NewSession(
 func (sm *MemorySessionManager) GetSessionData(
 	key string,
 ) (*SessionData, error) {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-
 	data, ok := sm.sessions[key]
 	if !ok {
 		return nil, ErrSessionNotFound
@@ -71,9 +63,6 @@ func (sm *MemorySessionManager) SetSessionData(
 	key string,
 	data *SessionData,
 ) error {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
 	_, ok := sm.sessions[key]
 	if !ok {
 		return ErrSessionNotFound
@@ -84,9 +73,6 @@ func (sm *MemorySessionManager) SetSessionData(
 }
 
 func (sm *MemorySessionManager) RefreshSession(key string) (string, error) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
 	_, ok := sm.sessions[key]
 	if !ok {
 		return "", ErrSessionNotFound
@@ -108,9 +94,6 @@ func (sm *MemorySessionManager) RefreshSession(key string) (string, error) {
 }
 
 func (sm *MemorySessionManager) EndSession(key string) error {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
 	_, ok := sm.sessions[key]
 	if !ok {
 		return ErrSessionNotFound

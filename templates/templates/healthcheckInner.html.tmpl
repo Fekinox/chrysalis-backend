@@ -1,0 +1,46 @@
+<table>
+  <tr>
+    <th>Local Time</th>
+    <td>{{.localTime | timeFormatUnix}}</td>
+  </tr>
+  <tr>
+    <th>
+      Total Acquires
+    </th>
+    <td>
+      <code>
+        {{.acquiredCount}}
+      </code>
+    </td>
+  </tr>
+  <tr>
+    <th>
+      Acquired Connections
+    </th>
+    <td>
+      <code>
+        {{.acquiredConns}}
+      </code>
+    </td>
+  </tr>
+  <tr>
+    <th>
+      Total Connections 
+    </th>
+    <td>
+      <code>
+        {{.totalConns}}
+      </code>
+    </td>
+  </tr>
+  <tr>
+    <th>
+      Max Connections
+    </th>
+    <td>
+      <code>
+        {{.maxConns}}
+      </code>
+    </td>
+  </tr>
+</table>
