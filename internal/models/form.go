@@ -207,11 +207,11 @@ func UpdateServiceForm(
 			return err
 		}
 
-		dupes, err := stx.FindDuplicates(ctx, form.FormVersionID)
+		found, err := stx.FindIfFormUnchanged(ctx, form.FormVersionID)
 		if err != nil {
 			return err
 		}
-		if len(dupes) > 0 {
+		if len(found) > 0 {
 			return ErrUnchangedForm
 		}
 

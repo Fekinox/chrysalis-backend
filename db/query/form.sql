@@ -193,3 +193,45 @@ WHERE
                     l_t_fs.paragraph = r_t_fs.paragraph
             END
     );
+
+-- name: FindIfFormUnchanged :many
+SELECT
+    1
+FROM
+    form_versions AS fv
+    INNER JOIN current_form_versions AS r_cfv ON fv.form_id = r_cfv.form_id
+    INNER JOIN form_versions AS r_fv ON r_cfv.form_version_id = r_fv.id
+WHERE
+    fv.id = $1 AND
+    r_fv.id <> $1 AND
+    fv.name = r_fv.name AND
+    fv.description = r_fv.description AND
+    (
+        SELECT COUNT(*) FROM form_fields
+        WHERE form_fields.form_version_id = fv.id
+    ) =
+    (
+        SELECT COUNT(*)
+        FROM
+            form_fields AS l_ffs
+            LEFT JOIN checkbox_fields AS l_ch_fs USING (form_version_id, idx)
+            LEFT JOIN radio_fields AS l_r_fs USING (form_version_id, idx)
+            LEFT JOIN text_fields AS l_t_fs USING (form_version_id, idx)
+            FULL OUTER JOIN
+                form_fields AS r_ffs
+                LEFT JOIN checkbox_fields AS r_ch_fs USING (form_version_id, idx)
+                LEFT JOIN radio_fields AS r_r_fs USING (form_version_id, idx)
+                LEFT JOIN text_fields AS r_t_fs USING (form_version_id, idx)
+            USING (idx, ftype, prompt, required)
+        WHERE
+            l_ffs.form_version_id = fv.id AND
+            r_ffs.form_version_id = r_fv.id AND
+            CASE l_ffs.ftype
+                WHEN 'checkbox' THEN
+                    l_ch_fs.options = r_ch_fs.options          
+                WHEN 'radio' THEN
+                    l_r_fs.options = r_r_fs.options          
+                ELSE
+                    l_t_fs.paragraph = r_t_fs.paragraph
+            END
+    );

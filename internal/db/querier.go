@@ -26,6 +26,7 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
 	DeleteForm(ctx context.Context, arg DeleteFormParams) error
 	FindDuplicates(ctx context.Context, id int64) ([]int64, error)
+	FindIfFormUnchanged(ctx context.Context, id int64) ([]int32, error)
 	GetCurrentFormVersionBySlug(ctx context.Context, arg GetCurrentFormVersionBySlugParams) (*GetCurrentFormVersionBySlugRow, error)
 	GetFilledFormFields(ctx context.Context, arg GetFilledFormFieldsParams) ([]*GetFilledFormFieldsRow, error)
 	GetFormFields(ctx context.Context, formVersionID int64) ([]*GetFormFieldsRow, error)
