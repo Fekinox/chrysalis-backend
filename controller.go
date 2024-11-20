@@ -122,3 +122,16 @@ func (cs *ChrysalisServer) HealthcheckInner(c *gin.Context) {
 		"maxConns":      stat.MaxConns(),
 	})
 }
+
+func (cs *ChrysalisServer) HealthcheckObjectStats(c *gin.Context) {
+	stats, err := cs.store.GetChrysalisStats(c.Request.Context())
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+	c.HTML(http.StatusOK, "healthcheckObjects.html.tmpl", gin.H{
+		"numUsers": stats.CountUsers,
+		"numForms": stats.NumForms,
+		"numTasks": stats.NumTasks,
+	})
+}

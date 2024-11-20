@@ -8,6 +8,7 @@ func (dc *ChrysalisServer) Mount(path string, sc Subcontroller) {
 func (dc *ChrysalisServer) MountHandlers() {
 	dc.router.GET("/", dc.Healthcheck)
 	dc.router.GET("/healthcheck-inner", HTMXRedirect("/"), dc.HealthcheckInner)
+	dc.router.GET("/healthcheck-objects", HTMXRedirect("/"), dc.HealthcheckObjectStats)
 	// api := dc.router.Group("/api")
 	// api.Use(ErrorHandler(&dc.cfg))
 	// api.Use(SessionKey(dc.sessionManager))

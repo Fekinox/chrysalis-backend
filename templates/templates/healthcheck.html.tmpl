@@ -9,5 +9,9 @@
     hx-get="/healthcheck-inner"
     hx-trigger="load, every 1s">
   </section>
+  <section
+    hx-get="/healthcheck-objects"
+    hx-trigger="load, every 10s">
+  </section>
 {{end}}
 {{template "skeleton" .}}
