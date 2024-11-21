@@ -5,93 +5,27 @@ A re-implementation of Chrysalis.
 Chrysalis is a tool that can be used by freelance workers to provide status
 updates on their tasks.
 
-## Entities
+## About
 
-## User
+Users can create accounts by providing their username and password. They can create forms using a Google Forms-like interface to build it out of various form components, and send those forms to other users. Users can fill out those forms, and the creator of the form can organize all the tasks they have.
 
-* Has a username and password.
+## Usage
 
-## Request Form
+Copy the default configuration located at `default.env` to `.env`, and configure it to your liking.
 
-* Has a reference to a user (the creator)
+Start up the backend infrastructure with `docker compose -f infra.yaml up`, then
+start up the main server with `go run main.go`
 
-## Request Form Version
+## Technology Used
 
-* Has a reference to the underlying request form.
-
-
-## Request Form Field
-
-* Has a reference to its parent form version.
-
-* Has an index to be sorted by.
-
-* Tuples of (parent form ID, index) are unique.
-
-* Has a binary toggle marking whether or not it is required.
-
-## Checkbox Field
-
-* Has a unique reference to a form field.
-
-* Has an array of options.
-
-## Radio Field
-
-* Has a unique reference to a form field.
-
-* Has an array of options.
-
-## Text Field
-
-* Has a unique reference to a form field.
-
-* Binary toggle on whether it is single-line or multi-line.
-
-## Number Field
-
-* Has a unique reference to a form field.
-
-* Has a minimum and maximum value.
-
-* Has an optional step size.
-
-## Filled Form
-
-* Has a reference to a specific version of a given request form.
-
-* Has a reference to the client's user id.
-
-## Filled Form Field
-
-* Has a reference to its parent filled form.
-
-* Has an index to be sorted by.
-
-* Tuples of (parent form ID, index) are unique.
-
-* Binary toggle on whether or not it is filled.
-
-## Filled Checkbox Field
-
-* Has a reference to a filled form field.
-
-* Has an array of selected options.
-
-## Filled Radio Field
-
-* Has a reference to a filled form field.
-
-* Has one selected option.
-
-## Filled Text Field
-
-* Has a reference to a filled form field.
-
-* Has a text value.
-
-## Filled Number Field
-
-* Has a reference to a filled form field.
-
-* Has a numeric value.
+| Technology | Usage                                                                |
+|------------|----------------------------------------------------------------------|
+| Gin        | HTTP framework and muxer for Go.                                     |
+| Nginx      | Reverse proxy                                                        |
+| PostgreSQL | Relational database for persistent data storage.                     |
+| KeyDB      | In-memory database for session storage.                              |
+| sqlc       | Code generator that converts SQL queries into type-safe Go code.     |
+| pgx        | PostgreSQL driver libraries for Go.                                  |
+| HTMX       | Framework for being able to make AJAX calls directly from HTML.      |
+| Alpine.js  | Lightweight framework for client-side scripting                      |
+| MVP.css    | Basic bootstrap styling, to be replaced with Tailwind in the future. |
