@@ -155,6 +155,7 @@ func RedirectIfNotLoggedIn(sm session.Manager, dests ...string) gin.HandlerFunc 
 			c.Next()
 		} else {
 			ContextRedirect(c, http.StatusSeeOther, dests...)
+			c.Abort()
 		}
 	}
 }

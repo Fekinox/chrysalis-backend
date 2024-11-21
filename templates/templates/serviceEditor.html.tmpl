@@ -1,5 +1,203 @@
 {{define "title"}}Hello World{{end}}
+{{define "scripts"}}
+  <script src="/static/js/editor.js"></script>
+{{end}}
 {{define "content"}}
-  <h1>Hello World!</h1> 
+  <div x-data="editor"
+    x-init="loadFromURL('{{.params.username}}', '{{.params.service}}')"
+    style="
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    ">
+    <section x-ref="fields"
+      style="
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      width: var(--width-card-wide);
+      padding: 0.5rem;
+      ">
+      <div style="
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--box-shadow);
+        margin: 0.5rem;
+        border-radius: var(--border-radius);
+        "
+        @click="scrollIntoViewIfNeeded($el)">
+        <div style="
+          height: 5px;
+          background-color: var(--color-link);
+          border-top-left-radius: var(--border-radius);
+          border-top-right-radius: var(--border-radius);
+          ">
+        </div>
+        <div style="
+          padding: 0.5rem 1rem;
+          ">
+          <input
+          type="text"
+          style="
+          font-size: 24pt;
+          "
+          x-model="title">
+          <input
+          type="text"
+          placeholder="Form description"
+          x-model="description">
+          <input
+          type="text"
+          placeholder="Form slug"
+          pattern="[-a-zA-Z0-9]*"
+          disabled
+          value="{{.params.service}}">
+        </div>
+      </div>
+      <div x-ref="fieldList"
+        style="
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        width: var(--width-card-wide);
+        padding: 0.5rem;
+        ">
+        <template x-for="(field, idx) in fields" :key="field.id">
+          <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            box-shadow: var(--box-shadow);
+            margin: 0.5rem 0rem;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            "
+            @click="scrollIntoViewIfNeeded($el)"
+            :data-key="field.id">
+            <div style="display: flex; justify-content:center; align-items: center; flex-direction: column">
+              <span class="field-handle">:::</span>
+            </div>
+            <div style="display: flex">
+              <input
+              type="text"
+              x-model="field.prompt"
+              placeholder="Write prompt here">
+              <select @change="setField(idx, $el.value)">
+                <option
+                value="checkbox"
+                :selected="field.type == 'checkbox'"
+                >Checkboxes</option>
+                <option
+                value="radio"
+                :selected="field.type == 'radio'"
+                >Multiple choice</option>
+                <hr />
+                <option
+                value="text"
+                :selected="field.type == 'text'"
+                >Short answer</option>
+                <option
+                value="paragraph"
+                :selected="field.type == 'paragraph'"
+                >Paragraph</option>
+              </select>
+            </div>
+            <template x-if="field.type == 'checkbox'">
+              <div x-data="{}">
+                <div x-ref="checkboxFields">
+                  <template x-for="(opt, jdx) in field.options" :key="jdx">
+                    <div style="display: flex; gap: 1rem; align-items: center;" >
+                      <input style="margin-bottom: 0" type="checkbox" disabled>
+                      <input
+                      style="
+                        margin-bottom: 0;
+                      "
+                      type="text"
+                      x-model="field.options[jdx].currentValue"
+                      @change="setOption(idx, jdx)">
+                      <button
+                        style="
+                          font-size: 24pt;
+                          padding: 0.2rem;
+                          line-height: 0;
+                          aspect-ratio: 1;
+                        "
+                        @click="field.options.splice(jdx, 1)">&#215;</button>
+                    </div>
+                  </template>
+                  <div style="display: flex; gap: 1rem;">
+                    <input type="checkbox" disabled>
+                    <input
+                    type="text"
+                    placeholder="Add new option"
+                    @focusin="newCheckboxOption(idx, $refs.checkboxFields)"
+                    ></input>
+                  </div> 
+                </div>
+              </div>
+            </template>
+            <template x-if="field.type == 'radio'">
+              <div x-data="{}">
+                <div x-ref="radioFields">
+                  <template x-for="(opt, jdx) in field.options" :key="jdx">
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                      <input style="margin-bottom: 0" type="radio" disabled>
+                      <input
+                      style="
+                        margin-bottom: 0;
+                      "
+                      type="text"
+                      x-model="field.options[jdx].currentValue"
+                      @change="setOption(idx, jdx)"
+                      ></input>
+                      <button
+                        style="
+                          font-size: 24pt;
+                          padding: 0.2rem;
+                          line-height: 0;
+                          aspect-ratio: 1;
+                        "
+                        @click="field.options.splice(jdx, 1)">&#215;</button>
+                    </div>
+                  </template>
+                  <div style="display: flex; gap: 1rem;">
+                    <input type="radio" disabled>
+                    <input
+                    type="text"
+                    placeholder="Add new option"
+                    @focusin="newRadioOption(idx, $refs.radioFields)"
+                    ></input>
+                  </div> 
+                </div>
+              </div>
+            </template>
+            <template x-if="field.type == 'text'">
+              <div>
+                <span>text</span>
+              </div>
+            </template>
+            <template x-if="field.type == 'paragraph'">
+              <div>
+                <span>paragraph</span>
+              </div>
+            </template>
+            <div style="display: flex; justify-content: end; align-items: center;">
+              <label :for="`required-${idx}`">Required</label>
+              <input
+              type="checkbox"
+              :id="`required-${idx}`"
+              x-model="field.required"
+              ></input>
+              <button @click="remove_field(field.id)" type="button">Delete</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </section>
+    <div style="display: flex; justify-content: center; gap: 1rem;">
+      <button @click="newField(newCheckbox(), fields.length)">New Field</button>
+      <button @click="replace('{{.params.username}}', '{{.params.service}}')">Submit</button>
+    </div>
+  </div>
 {{end}}
 {{template "skeleton" .}}

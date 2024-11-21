@@ -39,9 +39,14 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 		RedirectToLogin(mc.con.sessionManager),
 		mc.ServiceDetail,
 	)
+
 	app.GET("/:username/services/:servicename/edit",
 		RedirectToLogin(mc.con.sessionManager),
-		mc.ServiceDetail,
+		mc.ServiceEditor,
+	)
+	app.PUT("/:username/services/:servicename",
+		RedirectToLogin(mc.con.sessionManager),
+		mc.UpdateService,
 	)
 
 	app.GET("/new-service",
@@ -303,6 +308,65 @@ func (mc *MainController) ServiceDetail(c *gin.Context) {
 
 func (mc *MainController) ServiceCreator(c *gin.Context) {
 	c.HTML(http.StatusOK, "serviceCreator.html.tmpl", nil)
+}
+
+func (mc *MainController) ServiceEditor(c *gin.Context) {
+	c.HTML(http.StatusOK, "serviceEditor.html.tmpl", gin.H{
+		"params": gin.H{
+			"username": c.Param("username"),
+			"service":  c.Param("servicename"),
+		},
+	})
+}
+
+func (mc *MainController) UpdateService(c *gin.Context) {
+	username := c.Param("username")
+	slug := c.Param("servicename")
+
+	if slug == "" {
+		AbortError(c, http.StatusBadRequest, errors.New("Missing slug"))
+		return
+	}
+
+	// Prevent creating a service if the username in the url does not match the
+	// logged in user
+	if !IsUser(c, username) {
+		AbortError(c, http.StatusUnauthorized, errors.New("Unauthorized"))
+		return
+	}
+	sessionData, _ := GetSessionData(c)
+
+	var spec UpdateServiceSpec
+	err := c.ShouldBindJSON(&spec)
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	_, err = models.UpdateServiceForm(
+		c.Request.Context(),
+		mc.con.store,
+		models.CreateServiceVersionParams{
+			CreatorID:   sessionData.UserID,
+			ServiceSlug: slug,
+			Title:       spec.Title,
+			Description: spec.Description,
+			Fields:      spec.Fields,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, models.ErrUnchangedForm) {
+			c.Redirect(http.StatusSeeOther,
+				fmt.Sprintf("/app/%s/services/%s/dashboard", username, spec.Slug))
+			return
+		} else {
+			AbortError(c, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	c.Redirect(http.StatusSeeOther,
+		fmt.Sprintf("/app/%s/services/%s/dashboard", username, spec.Slug))
 }
 
 func (mc *MainController) CreateNewService(c *gin.Context) {

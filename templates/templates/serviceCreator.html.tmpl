@@ -194,7 +194,7 @@
     </section>
     <div style="display: flex; justify-content: center; gap: 1rem;">
       <button @click="newField(newCheckbox(), fields.length)">New Field</button>
-      <button @click="submit">Submit</button>
+      <button @click="replace('{{.params.username}}', '{{.params.service}}')">Submit</button>
     </div>
   </div>
 {{end}}

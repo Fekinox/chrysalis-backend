@@ -287,7 +287,7 @@ func (jc *JSONAPIController) CreateService(c *gin.Context) {
 
 	// Prevent creating a service if the username in the url does not match the
 	// logged in user
-	if !jc.IsUser(c, username) {
+	if !IsUser(c, username) {
 		AbortError(c, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
@@ -338,7 +338,7 @@ func (jc *JSONAPIController) UpdateService(c *gin.Context) {
 
 	// Prevent creating a service if the username in the url does not match the
 	// logged in user
-	if !jc.IsUser(c, username) {
+	if !IsUser(c, username) {
 		AbortError(c, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
@@ -381,7 +381,7 @@ func (jc *JSONAPIController) DeleteService(c *gin.Context) {
 	username := c.Param("username")
 	slug := c.Param("servicename")
 
-	if !jc.IsUser(c, username) {
+	if !IsUser(c, username) {
 		AbortError(c, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
@@ -407,7 +407,7 @@ func (jc *JSONAPIController) DeleteService(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func (jc *JSONAPIController) IsUser(c *gin.Context, user string) bool {
+func IsUser(c *gin.Context, user string) bool {
 	if user == "" {
 		return false
 	}
