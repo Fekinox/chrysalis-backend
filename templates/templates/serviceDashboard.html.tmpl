@@ -7,23 +7,6 @@
     });
     htmx.trigger(document.getElementById("tabarea"), "refresh")
   }
-
-  document.addEventListener('alpine:init', () => {
-    Alpine.data('dashboard', () => ({
-      currentTab: 'pending',
-      tabs: [
-        'pending',
-        'approved',
-        'in progress',
-        'delayed',
-        'complete',
-        'cancelled',
-      ],
-
-      init() {
-      },
-    }))
-  })
   </script>
 {{end}}
 {{define "header"}}
