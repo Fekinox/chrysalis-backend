@@ -37,7 +37,12 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.GET(
 		"/:username/services/:servicename/form",
 		RedirectToLogin(mc.con.sessionManager),
-		mc.ServiceDetail,
+		mc.ServiceForm,
+	)
+	app.POST(
+		"/:username/services/:servicename/form",
+		RedirectToLogin(mc.con.sessionManager),
+		mc.CreateTask,
 	)
 
 	app.GET("/:username/services/:servicename/edit",
@@ -269,7 +274,7 @@ func (mc *MainController) TaskDetail(c *gin.Context) {
 	})
 }
 
-func (mc *MainController) ServiceDetail(c *gin.Context) {
+func (mc *MainController) ServiceForm(c *gin.Context) {
 	params := models.ServiceFormParams{
 		Username: c.Param("username"),
 		Service:  c.Param("servicename"),
@@ -303,7 +308,49 @@ func (mc *MainController) ServiceDetail(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusOK, "serviceDetail.html.tmpl", form)
+	c.HTML(http.StatusOK, "serviceForm.html.tmpl", gin.H{
+		"form": form,
+		"params": gin.H{
+			"username": c.Param("username"),
+			"service":  c.Param("servicename"),
+		},
+	})
+}
+
+func (mc *MainController) CreateTask(c *gin.Context) {
+	sessionData, _ := GetSessionData(c)
+	serviceCreator := c.Param("username")
+	serviceSlug := c.Param("servicename")
+
+	if serviceCreator == "" || serviceSlug == "" {
+		AbortError(c, http.StatusBadRequest, errors.New("Username or service cannot be empty"))
+		return
+	}
+
+	var params CreateTaskParams
+	err := c.ShouldBindJSON(&params)
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	task, err := models.CreateTask(c.Request.Context(), mc.con.store, models.CreateTaskParams{
+		CreatorUsername: serviceCreator,
+		FormSlug:        serviceSlug,
+		ClientID:        sessionData.UserID,
+		Fields:          params.Fields,
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Redirect(http.StatusSeeOther,
+		fmt.Sprintf("/app/%s/services/%s/tasks/%s",
+			serviceCreator,
+			serviceSlug,
+			task.TaskSlug),
+	)
 }
 
 func (mc *MainController) ServiceCreator(c *gin.Context) {

@@ -1,5 +1,121 @@
 {{define "title"}}Hello World{{end}}
+{{define "scripts"}}
+  <script src="/static/js/form.js"></script>
+{{end}}
 {{define "content"}}
-  <h1>Hello World!</h1> 
+  <div x-data="form"
+    x-init="loadFromURL('{{.params.username}}', '{{.params.service}}')"
+    style="
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    ">
+    <section x-ref="fields"
+      style="
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      width: var(--width-card-wide);
+      padding: 0.5rem;
+      ">
+      <div style="
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--box-shadow);
+        margin: 0.5rem;
+        border-radius: var(--border-radius);
+        "
+        @click="scrollIntoViewIfNeeded($el)">
+        <div style="
+          height: 5px;
+          background-color: var(--color-link);
+          border-top-left-radius: var(--border-radius);
+          border-top-right-radius: var(--border-radius);
+          ">
+        </div>
+        <div style="
+          padding: 0.5rem 1rem;
+          ">
+          <input
+          type="text"
+          style="
+          font-size: 24pt;
+          "
+          x-model="title">
+          <input
+          type="text"
+          placeholder="Form description"
+          x-model="description">
+        </div>
+      </div>
+      <div x-ref="fieldList"
+        style="
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        width: var(--width-card-wide);
+        padding: 0.5rem;
+        ">
+        <template x-for="(field, idx) in fields" :key="field.id">
+          <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            box-shadow: var(--box-shadow);
+            margin: 0.5rem 0rem;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            "
+            @click="scrollIntoViewIfNeeded($el)"
+            :data-key="field.id">
+            <div style="display: flex">
+              <h4 x-text="field.prompt"></h4>
+            </div>
+            <template x-if="field.type == 'checkbox'">
+              <div x-data="{}">
+                <div x-ref="checkboxFields">
+                  <template x-for="(opt, jdx) in field.options" :key="jdx">
+                    <div style="display: flex; gap: 1rem; align-items: center;" >
+                      <input
+                        style="margin-bottom: 0"
+                        type="checkbox"
+                        :value="opt"
+                        x-model="field.selectedOptions">
+                      <span x-text="opt"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <template x-if="field.type == 'radio'">
+              <div x-data="{}">
+                <div x-ref="radioFields">
+                  <template x-for="(opt, jdx) in field.options" :key="jdx">
+                    <div style="display: flex; gap: 1rem; align-items: center;" >
+                      <input
+                        style="margin-bottom: 0"
+                        type="radio"
+                        :value="opt"
+                        x-model="field.selectedOption">
+                      <span x-text="opt"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <template x-if="field.type == 'text'">
+              <input type="text" x-model="field.content">
+            </template>
+            <template x-if="field.type == 'paragraph'">
+              <textarea x-model="field.content"></textarea>
+            </template>
+          </div>
+        </template>
+      </div>
+    </section>
+    <div style="display: flex; justify-content: center; gap: 1rem;">
+      <button @click="submit('{{.params.username}}', '{{.params.service}}')">Submit</button>
+    </div>
+  </div>
 {{end}}
 {{template "skeleton" .}}
