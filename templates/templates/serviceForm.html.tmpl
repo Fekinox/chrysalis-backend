@@ -1,4 +1,4 @@
-{{define "title"}}Hello World{{end}}
+{{define "title"}}{{.form.Name}}{{end}}
 {{define "scripts"}}
   <script src="/static/js/form.js"></script>
 {{end}}
@@ -36,16 +36,8 @@
         <div style="
           padding: 0.5rem 1rem;
           ">
-          <input
-          type="text"
-          style="
-          font-size: 24pt;
-          "
-          x-model="title">
-          <input
-          type="text"
-          placeholder="Form description"
-          x-model="description">
+          <h2>{{.form.Name}}</h2>
+          <p>{{.form.Description}}</p>
         </div>
       </div>
       <div x-ref="fieldList"
