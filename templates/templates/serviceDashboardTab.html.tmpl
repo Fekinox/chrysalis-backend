@@ -2,44 +2,44 @@
   <ul>
     <li style="display: inline">
       {{if eq .params.status "pending"}}
-        <span>Pending</span>
+        <span>Pending ({{index .taskCounts "pending"}})</span>
       {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/pending">Pending</a>
+        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/pending">Pending ({{index .taskCounts "pending"}})</a>
       {{end}}
     </li>
     <li style="display: inline">
       {{if eq .params.status "approved"}}
-        <span>Approved</span>
+        <span>Approved ({{index .taskCounts "approved"}})</span>
       {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/approved">Approved</a>
+        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/approved">Approved ({{index .taskCounts "approved"}})</a>
       {{end}}
     </li>
     <li style="display: inline">
       {{if eq .params.status "in progress"}}
-        <span>In Progress</span>
+        <span>In Progress ({{index .taskCounts "in progress"}})</span>
       {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/in progress">In Progress</a>
+        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/in progress">In Progress ({{index .taskCounts "in progress"}})</a>
       {{end}}
     </li>
     <li style="display: inline">
       {{if eq .params.status "delayed"}}
-        <span>Delayed</span>
+        <span>Delayed ({{index .taskCounts "delayed"}})</span>
       {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/delayed">Delayed</a>
+        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/delayed">Delayed ({{index .taskCounts "delayed"}})</a>
       {{end}}
     </li>
     <li style="display: inline">
       {{if eq .params.status "complete"}}
-        <span>Complete</span>
+        <span>Complete ({{index .taskCounts "complete"}})</span>
       {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/complete">Complete</a>
+        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/complete">Complete ({{index .taskCounts "complete"}})</a>
       {{end}}
     </li>
     <li style="display: inline">
       {{if eq .params.status "cancelled"}}
-        <span>Cancelled</span>
+        <span>Cancelled ({{index .taskCounts "cancelled"}})</span>
       {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/cancelled">Cancelled</a>
+        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/cancelled">Cancelled ({{index .taskCounts "cancelled"}})</a>
       {{end}}
     </li>
   </ul>

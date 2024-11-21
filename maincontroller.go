@@ -178,6 +178,7 @@ func (mc *MainController) ServiceDashboard(c *gin.Context) {
 func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 	var taskHeaders []*db.GetServiceTasksBySlugRow
 	var filteredHeaders []*db.GetServiceTasksBySlugRow
+	var taskCounts map[string]int = make(map[string]int)
 
 	err := mc.con.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
 		var err error
@@ -195,6 +196,7 @@ func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 		// FIXME: create a specialized query to handle this instead
 		filteredHeaders = make([]*db.GetServiceTasksBySlugRow, 0)
 		for _, t := range taskHeaders {
+			taskCounts[string(t.Status)]++
 			if t.Status == db.TaskStatus(c.Param("status")) {
 				filteredHeaders = append(filteredHeaders, t)
 			}
@@ -213,7 +215,8 @@ func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 			"username":    c.Param("username"),
 			"servicename": c.Param("servicename"),
 		},
-		"tasks": filteredHeaders,
+		"tasks":      filteredHeaders,
+		"taskCounts": taskCounts,
 	})
 }
 
