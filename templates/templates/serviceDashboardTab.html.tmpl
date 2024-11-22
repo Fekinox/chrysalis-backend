@@ -52,6 +52,11 @@
       <th>User</th>
       <th>Name</th>
       <th>Summary</th>
+      {{with $.session}}
+        {{if eq .Username $.params.username}}
+          <th></th>
+        {{end}}
+      {{end}}
     </tr>
   </thead>
   <tbody id="tasktable">
