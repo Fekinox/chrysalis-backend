@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/formfield"
@@ -59,6 +60,21 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	users.PUT(
 		"/:username/services/:servicename/tasks/:taskslug",
 		jc.UpdateTask,
+	)
+	users.POST(
+		"/:username/services/:servicename/swap",
+		HasSessionKey(jc.con.sessionManager),
+		jc.SwapTasks,
+	)
+	users.POST(
+		"/:username/services/:servicename/swap-idx",
+		HasSessionKey(jc.con.sessionManager),
+		jc.SwapTasksStatusAndIndex,
+	)
+	users.POST(
+		"/:username/services/:servicename/move",
+		HasSessionKey(jc.con.sessionManager),
+		jc.MoveTask,
 	)
 }
 
@@ -564,20 +580,17 @@ func (jc *JSONAPIController) UpdateTask(c *gin.Context) {
 	serviceSlug := c.Param("servicename")
 	taskSlug := c.Param("taskslug")
 
-	n, err := jc.con.store.UpdateTaskStatus(
-		c.Request.Context(),
-		db.UpdateTaskStatusParams{
-			Status:   db.TaskStatus(c.Query("status")),
-			Creator:  serviceCreator,
-			FormSlug: serviceSlug,
-			TaskSlug: taskSlug,
-		},
-	)
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	} else if len(n) == 0 {
+	err := models.UpdateTaskStatus(c.Request.Context(), jc.con.store, models.UpdateTaskParams{
+		CreatorUsername: serviceCreator,
+		ServiceName:     serviceSlug,
+		TaskName:        taskSlug,
+		Status:          db.TaskStatus(c.Query("status")),
+	})
+	if errors.Is(err, models.ErrTaskNotFound) {
 		AbortError(c, http.StatusNotFound, fmt.Errorf("%w: %v", ErrNotFound, serviceCreator))
+		return
+	} else if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -589,4 +602,79 @@ func (jc *JSONAPIController) UpdateTask(c *gin.Context) {
 			taskSlug,
 		),
 	)
+}
+
+// Update the status of a task as the owner of a service
+func (jc *JSONAPIController) SwapTasks(c *gin.Context) {
+	serviceCreator := c.Param("username")
+	serviceSlug := c.Param("servicename")
+
+	task1 := c.Query("task1")
+	task2 := c.Query("task2")
+
+	err := models.SwapTasks(c.Request.Context(), jc.con.store, models.SwapTasksParams{
+		CreatorUsername: serviceCreator,
+		ServiceName:     serviceSlug,
+		Task1Name:       task1,
+		Task2Name:       task2,
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// Update the status of a task as the owner of a service
+func (jc *JSONAPIController) SwapTasksStatusAndIndex(c *gin.Context) {
+	task1, err := strconv.Atoi(c.Query("task1"))
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, errors.New("task1 must be an integer"))
+		return
+	}
+	task2, err := strconv.Atoi(c.Query("task2"))
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, errors.New("task2 must be an integer"))
+		return
+	}
+
+	err = models.SwapTasksByStatusAndId(c.Request.Context(), jc.con.store, models.SwapTasksByStatusAndIdParams{
+		CreatorUsername: c.Param("username"),
+		ServiceName:     c.Param("servicename"),
+		Status:          db.TaskStatus(c.Query("status")),
+		Task1Index:      task1,
+		Task2Index:      task2,
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// Update the status of a task as the owner of a service
+func (jc *JSONAPIController) MoveTask(c *gin.Context) {
+	src, err := strconv.Atoi(c.Query("src"))
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, errors.New("task1 must be an integer"))
+		return
+	}
+	dest, err := strconv.Atoi(c.Query("dest"))
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, errors.New("task2 must be an integer"))
+		return
+	}
+
+	err = models.MoveTask(c.Request.Context(), jc.con.store, models.MoveTaskParams{
+		CreatorUsername: c.Param("username"),
+		ServiceName:     c.Param("servicename"),
+		Status:          db.TaskStatus(c.Query("status")),
+		OldIndex:        src,
+		NewIndex:        dest,
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+	}
+
+	c.Status(http.StatusNoContent)
 }

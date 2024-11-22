@@ -44,6 +44,7 @@ type Task struct {
 	TaskName    string             `json:"task_name"`
 	TaskSummary string             `json:"task_summary"`
 	Status      db.TaskStatus      `json:"status"`
+	Index	int32 `json:"index"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 
 	Fields []formfield.FilledFormField `json:"fields"`
@@ -62,6 +63,36 @@ type GetTaskParams struct {
 	CreatorUsername string
 	ServiceName     string
 	TaskName        string
+}
+
+type UpdateTaskParams struct {
+	CreatorUsername string
+	ServiceName     string
+	TaskName        string
+	Status db.TaskStatus
+}
+
+type SwapTasksParams struct {
+	CreatorUsername string
+	ServiceName string
+	Task1Name string
+	Task2Name string
+}
+
+type SwapTasksByStatusAndIdParams struct {
+	CreatorUsername string
+	ServiceName string
+	Status db.TaskStatus
+	Task1Index int
+	Task2Index int
+}
+
+type MoveTaskParams struct {
+	CreatorUsername string
+	ServiceName string
+	Status db.TaskStatus
+	OldIndex int
+	NewIndex int
 }
 
 func CreateTask(
@@ -156,7 +187,10 @@ func CreateTask(
 			}
 		}
 
-		var _ = taskHeader
+		taskState, err := s.CreateTaskState(ctx, taskHeader.ID)
+		if err != nil {
+			return err
+		}
 
 		task = &Task{
 			TaskID:        taskHeader.ID,
@@ -169,7 +203,8 @@ func CreateTask(
 			ClientUsername: client.Username,
 			TaskName:       taskHeader.TaskName,
 			TaskSummary:    taskHeader.TaskSummary,
-			Status:         taskHeader.Status,
+			Status:         taskState.Status,
+			Index:			taskState.Idx,
 			CreatedAt:      taskHeader.CreatedAt,
 			Fields:         p.Fields,
 		}
@@ -241,6 +276,7 @@ func GetTask(
 			ClientID:       taskHeader.ClientID,
 			ClientUsername: client.Username,
 			Status:         taskHeader.Status,
+			Index:         taskHeader.Idx,
 			TaskName:       taskHeader.TaskName,
 			TaskSummary:    taskHeader.TaskSummary,
 			CreatedAt:      taskHeader.CreatedAt,
@@ -253,4 +289,147 @@ func GetTask(
 		return nil, err
 	}
 	return task, nil
+}
+
+func SwapTasks(
+	ctx context.Context,
+	d *db.Store,
+	p SwapTasksParams,
+) error {
+	return d.BeginFunc(ctx, func(s *db.Store) error {
+		task1, err := s.GetTaskHeader(ctx, db.GetTaskHeaderParams{
+			Username: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+			TaskSlug: p.Task1Name,
+		})
+		if err != nil {
+			return nil
+		}
+		task2, err := s.GetTaskHeader(ctx, db.GetTaskHeaderParams{
+			Username: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+			TaskSlug: p.Task2Name,
+		})
+		if err != nil {
+			return nil
+		}
+
+		if task1.Status != task2.Status {
+		  return errors.New("Tasks must have same status to be swapped")
+		}
+
+		return s.SwapTasks(ctx, db.SwapTasksParams{
+			TaskID1: &task1.ID,
+			TaskID2: &task2.ID,
+		})
+	})
+}
+
+func SwapTasksByStatusAndId(
+	ctx context.Context,
+	d *db.Store,
+	p SwapTasksByStatusAndIdParams,
+) error {
+	return d.BeginFunc(ctx, func(s *db.Store) error {
+		task1, err := s.GetTaskByStatusAndIndex(ctx, db.GetTaskByStatusAndIndexParams{
+			CreatorUsername: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+			Status: p.Status,	
+			Idx: int32(p.Task1Index),
+		})
+		if err != nil {
+			return nil
+		}
+		task2, err := s.GetTaskByStatusAndIndex(ctx, db.GetTaskByStatusAndIndexParams{
+			CreatorUsername: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+			Status: p.Status,	
+			Idx: int32(p.Task2Index),
+		})
+		if err != nil {
+			return nil
+		}
+
+		if task1.Status != task2.Status {
+		  return errors.New("Tasks must have same status to be swapped")
+		}
+
+		return s.SwapTasks(ctx, db.SwapTasksParams{
+			TaskID1: &task1.ID,
+			TaskID2: &task2.ID,
+		})
+	})
+}
+
+func MoveTask(
+	ctx context.Context,
+	d *db.Store,
+	p MoveTaskParams,
+) error {
+	return d.BeginFunc(ctx, func(s *db.Store) error {
+		task, err := s.GetTaskByStatusAndIndex(ctx, db.GetTaskByStatusAndIndexParams{
+			CreatorUsername: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+			Status: p.Status,	
+			Idx: int32(p.OldIndex),
+		})
+		if err != nil {
+			return err
+		}
+
+		err = s.RemoveTask(ctx, task.ID)
+		if err != nil {
+			return err
+		}
+
+		err = s.ReorderTaskStatuses(ctx, db.ReorderTaskStatusesParams{
+			CreatorUsername: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+		})
+		if err != nil {
+			return err
+		}
+
+		err = s.InsertTask(ctx, db.InsertTaskParams{
+			NewIndex: int32(p.NewIndex),
+			Status: p.Status,
+		})
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func UpdateTaskStatus(
+	ctx context.Context,
+	d *db.Store,
+	p UpdateTaskParams,
+) error {
+	return d.BeginFunc(ctx, func(s *db.Store) error {
+		n, err := s.UpdateTaskStatus(
+			ctx,
+			db.UpdateTaskStatusParams{
+				Status:   p.Status,
+				Creator:  p.CreatorUsername,
+				FormSlug: p.ServiceName,
+				TaskSlug: p.TaskName,
+			},
+		)
+		if err != nil {
+			return err
+		} else if len(n) == 0 {
+			return fmt.Errorf("%w: %v", ErrTaskNotFound, p.TaskName)
+		}
+
+		err = s.ReorderTaskStatuses(ctx, db.ReorderTaskStatusesParams{
+			CreatorUsername: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }

@@ -170,11 +170,16 @@ type Task struct {
 	ID            int64              `json:"id"`
 	ClientID      uuid.UUID          `json:"client_id"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	Status        TaskStatus         `json:"status"`
 	Slug          string             `json:"slug"`
 	FormVersionID int64              `json:"form_version_id"`
 	TaskName      string             `json:"task_name"`
 	TaskSummary   string             `json:"task_summary"`
+}
+
+type TaskState struct {
+	TaskID int64      `json:"task_id"`
+	Idx    int32      `json:"idx"`
+	Status TaskStatus `json:"status"`
 }
 
 type TextField struct {

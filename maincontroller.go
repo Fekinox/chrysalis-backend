@@ -39,6 +39,11 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 		HasSessionKey(mc.con.sessionManager),
 		mc.UpdateTask,
 	)
+	app.POST(
+		"/:username/services/:servicename/tasks/swap",
+		HasSessionKey(mc.con.sessionManager),
+		mc.UpdateTask,
+	)
 
 	app.GET(
 		"/:username/services/:servicename/form",
@@ -241,21 +246,39 @@ func (mc *MainController) UpdateTask(c *gin.Context) {
 	serviceName := c.Param("servicename")
 	taskName := c.Param("taskname")
 
-	n, err := mc.con.store.UpdateTaskStatus(
-		c.Request.Context(),
-		db.UpdateTaskStatusParams{
-			Status:   db.TaskStatus(c.Query("status")),
-			Creator:  serviceCreator,
-			FormSlug: serviceName,
-			TaskSlug: taskName,
-		},
-	)
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	} else if len(n) == 0 {
+	err := models.UpdateTaskStatus(c.Request.Context(), mc.con.store, models.UpdateTaskParams{
+		CreatorUsername: serviceCreator,
+		ServiceName: serviceName,
+		TaskName: taskName,
+		Status: db.TaskStatus(c.Query("status")),
+	})
+	if errors.Is(err, models.ErrTaskNotFound) {
 		AbortError(c, http.StatusNotFound, fmt.Errorf("%w: %v", ErrNotFound, serviceCreator))
 		return
+	} else if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// Update the status of a task as the owner of a service
+func (mc *MainController) SwapTasks(c *gin.Context) {
+	serviceCreator := c.Param("username")
+	serviceSlug := c.Param("servicename")
+
+	task1 := c.Query("task1")
+	task2 := c.Query("task2")
+
+	err := models.SwapTasks(c.Request.Context(), mc.con.store, models.SwapTasksParams{
+		CreatorUsername: serviceCreator,
+		ServiceName: serviceSlug,
+		Task1Name: task1,
+		Task2Name: task2,
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
 	}
 
 	c.Status(http.StatusNoContent)

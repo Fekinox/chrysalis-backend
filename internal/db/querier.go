@@ -23,6 +23,7 @@ type Querier interface {
 	CreateForm(ctx context.Context, arg CreateFormParams) (*CreateFormRow, error)
 	CreateFormVersion(ctx context.Context, arg CreateFormVersionParams) (*FormVersion, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (*CreateTaskRow, error)
+	CreateTaskState(ctx context.Context, taskID int64) (*TaskState, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
 	DeleteForm(ctx context.Context, arg DeleteFormParams) error
 	FindDuplicates(ctx context.Context, id int64) ([]int64, error)
@@ -36,11 +37,16 @@ type Querier interface {
 	GetInboundTasks(ctx context.Context, creatorUsername string) ([]*GetInboundTasksRow, error)
 	GetOutboundTasks(ctx context.Context, clientUsername string) ([]*GetOutboundTasksRow, error)
 	GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasksBySlugParams) ([]*GetServiceTasksBySlugRow, error)
+	GetTaskByStatusAndIndex(ctx context.Context, arg GetTaskByStatusAndIndexParams) (*GetTaskByStatusAndIndexRow, error)
 	GetTaskFields(ctx context.Context) (int32, error)
 	GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*GetTaskHeaderRow, error)
 	GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	GetUserFormHeaders(ctx context.Context, creatorID uuid.UUID) ([]*GetUserFormHeadersRow, error)
+	InsertTask(ctx context.Context, arg InsertTaskParams) error
+	RemoveTask(ctx context.Context, taskID1 int64) error
+	ReorderTaskStatuses(ctx context.Context, arg ReorderTaskStatusesParams) error
+	SwapTasks(ctx context.Context, arg SwapTasksParams) error
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) ([]int32, error)
 }
 

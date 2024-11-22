@@ -1,4 +1,4 @@
-{{define "title"}}Task for {{.form.Name}} ({{.params.task}}) from {{.task.ClientUsername}}{{end}}
+{{define "title"}}Task {{.task.TaskName}} from {{.task.ClientUsername}}{{end}}
 {{define "content"}}
   <div
     style="
@@ -34,6 +34,9 @@
           ">
           <h2>{{.form.Name}}</h2>
           <p>{{.form.Description}}</p>
+          <hr>
+          <h3>{{.task.TaskName}}</h3>
+          <p>{{.task.TaskSummary}}</p>
         </div>
       </div>
       <div

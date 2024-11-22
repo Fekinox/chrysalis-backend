@@ -144,7 +144,6 @@ INSERT INTO tasks (
     form_version_id,
     task_name,
     task_summary,
-    status,
     slug,
     created_at
 `
@@ -163,7 +162,6 @@ type CreateTaskRow struct {
 	FormVersionID int64              `json:"form_version_id"`
 	TaskName      string             `json:"task_name"`
 	TaskSummary   string             `json:"task_summary"`
-	Status        TaskStatus         `json:"status"`
 	Slug          string             `json:"slug"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
@@ -183,10 +181,42 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (*Create
 		&i.FormVersionID,
 		&i.TaskName,
 		&i.TaskSummary,
-		&i.Status,
 		&i.Slug,
 		&i.CreatedAt,
 	)
+	return &i, err
+}
+
+const createTaskState = `-- name: CreateTaskState :one
+INSERT INTO task_states (
+    task_id,
+    idx
+) VALUES (
+    $1,
+    (SELECT
+        COUNT(*)
+    FROM
+        task_states AS ts
+        INNER JOIN tasks AS tks ON ts.task_id = tks.id
+        INNER JOIN form_versions AS fvs ON fvs.id = tks.form_version_id
+        INNER JOIN forms AS fms ON fms.id = fvs.form_id,
+        tasks AS cur_task
+        INNER JOIN form_versions AS cur_fv ON cur_fv.id = cur_task.form_version_id
+        INNER JOIN forms AS cur_fms ON cur_fms.id = cur_fv.form_id
+    WHERE
+        cur_task.id = $1 AND
+        fms.id = cur_fms.id
+    )
+) RETURNING
+    task_id,
+    idx,
+    status
+`
+
+func (q *Queries) CreateTaskState(ctx context.Context, taskID int64) (*TaskState, error) {
+	row := q.db.QueryRow(ctx, createTaskState, taskID)
+	var i TaskState
+	err := row.Scan(&i.TaskID, &i.Idx, &i.Status)
 	return &i, err
 }
 
@@ -259,18 +289,22 @@ SELECT
     forms.slug AS form_slug,
     tasks.id AS task_id,
     tasks.client_id,
-    status,
     tasks.slug AS task_slug,
     tasks.created_at,
-    client.username AS client_username
+    client.username AS client_username,
+
+    ts.status,
+    ts.idx
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
     INNER JOIN forms ON forms.id = form_versions.form_id
     INNER JOIN users AS creator ON forms.creator_id = creator.id
     INNER JOIN users AS client ON tasks.client_id = client.id
+    INNER JOIN task_states AS ts ON ts.task_id = tasks.id
 WHERE
     creator.username = $1
+ORDER BY ts.status ASC, ts.idx ASC
 `
 
 type GetInboundTasksRow struct {
@@ -281,10 +315,11 @@ type GetInboundTasksRow struct {
 	FormSlug       string             `json:"form_slug"`
 	TaskID         int64              `json:"task_id"`
 	ClientID       uuid.UUID          `json:"client_id"`
-	Status         TaskStatus         `json:"status"`
 	TaskSlug       string             `json:"task_slug"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	ClientUsername string             `json:"client_username"`
+	Status         TaskStatus         `json:"status"`
+	Idx            int32              `json:"idx"`
 }
 
 func (q *Queries) GetInboundTasks(ctx context.Context, creatorUsername string) ([]*GetInboundTasksRow, error) {
@@ -304,10 +339,11 @@ func (q *Queries) GetInboundTasks(ctx context.Context, creatorUsername string) (
 			&i.FormSlug,
 			&i.TaskID,
 			&i.ClientID,
-			&i.Status,
 			&i.TaskSlug,
 			&i.CreatedAt,
 			&i.ClientUsername,
+			&i.Status,
+			&i.Idx,
 		); err != nil {
 			return nil, err
 		}
@@ -328,19 +364,23 @@ SELECT
     forms.slug AS form_slug,
     tasks.id AS task_id,
     tasks.client_id,
-    status,
     tasks.slug AS task_slug,
     tasks.created_at,
     client.username AS client_username,
-    creator.username AS client_username
+    creator.username AS client_username,
+
+    ts.status,
+    ts.idx
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
     INNER JOIN forms ON forms.id = form_versions.form_id
     INNER JOIN users AS client ON tasks.client_id = client.id
     INNER JOIN users AS creator ON forms.creator_id = creator.id
+    INNER JOIN task_states AS ts ON ts.task_id = tasks.id
 WHERE
     client.username = $1
+ORDER BY ts.status ASC, ts.idx ASC
 `
 
 type GetOutboundTasksRow struct {
@@ -351,11 +391,12 @@ type GetOutboundTasksRow struct {
 	FormSlug         string             `json:"form_slug"`
 	TaskID           int64              `json:"task_id"`
 	ClientID         uuid.UUID          `json:"client_id"`
-	Status           TaskStatus         `json:"status"`
 	TaskSlug         string             `json:"task_slug"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	ClientUsername   string             `json:"client_username"`
 	ClientUsername_2 string             `json:"client_username_2"`
+	Status           TaskStatus         `json:"status"`
+	Idx              int32              `json:"idx"`
 }
 
 func (q *Queries) GetOutboundTasks(ctx context.Context, clientUsername string) ([]*GetOutboundTasksRow, error) {
@@ -375,11 +416,12 @@ func (q *Queries) GetOutboundTasks(ctx context.Context, clientUsername string) (
 			&i.FormSlug,
 			&i.TaskID,
 			&i.ClientID,
-			&i.Status,
 			&i.TaskSlug,
 			&i.CreatedAt,
 			&i.ClientUsername,
 			&i.ClientUsername_2,
+			&i.Status,
+			&i.Idx,
 		); err != nil {
 			return nil, err
 		}
@@ -397,20 +439,24 @@ SELECT
     tasks.id,
     tasks.client_id,
     clients.username AS client_username,
-    status,
     tasks.slug,
     tasks.created_at,
     tasks.task_name,
-    tasks.task_summary
+    tasks.task_summary,
+
+    ts.status,
+    ts.idx
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
     INNER JOIN forms ON forms.id = form_versions.form_id
     INNER JOIN users ON forms.creator_id = users.id
     INNER JOIN users AS clients ON tasks.client_id = clients.id
+    INNER JOIN task_states AS ts ON ts.task_id = tasks.id
 WHERE
     forms.slug = $1 AND
     users.username = $2
+ORDER BY ts.status ASC, ts.idx ASC
 `
 
 type GetServiceTasksBySlugParams struct {
@@ -423,11 +469,12 @@ type GetServiceTasksBySlugRow struct {
 	ID             int64              `json:"id"`
 	ClientID       uuid.UUID          `json:"client_id"`
 	ClientUsername string             `json:"client_username"`
-	Status         TaskStatus         `json:"status"`
 	Slug           string             `json:"slug"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	TaskName       string             `json:"task_name"`
 	TaskSummary    string             `json:"task_summary"`
+	Status         TaskStatus         `json:"status"`
+	Idx            int32              `json:"idx"`
 }
 
 func (q *Queries) GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasksBySlugParams) ([]*GetServiceTasksBySlugRow, error) {
@@ -444,11 +491,12 @@ func (q *Queries) GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasks
 			&i.ID,
 			&i.ClientID,
 			&i.ClientUsername,
-			&i.Status,
 			&i.Slug,
 			&i.CreatedAt,
 			&i.TaskName,
 			&i.TaskSummary,
+			&i.Status,
+			&i.Idx,
 		); err != nil {
 			return nil, err
 		}
@@ -458,6 +506,76 @@ func (q *Queries) GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasks
 		return nil, err
 	}
 	return items, nil
+}
+
+const getTaskByStatusAndIndex = `-- name: GetTaskByStatusAndIndex :one
+SELECT
+    tasks.form_version_id,
+    tasks.id,
+    tasks.client_id,
+    clients.username AS client_username,
+    tasks.slug,
+    tasks.created_at,
+    tasks.task_name,
+    tasks.task_summary,
+
+    ts.status,
+    ts.idx
+FROM
+    tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users ON forms.creator_id = users.id
+    INNER JOIN users AS clients ON tasks.client_id = clients.id
+    INNER JOIN task_states AS ts ON ts.task_id = tasks.id
+WHERE
+    forms.slug = $1 AND
+    users.username = $2 AND
+    ts.status = $3 AND
+    ts.idx = $4
+`
+
+type GetTaskByStatusAndIndexParams struct {
+	FormSlug        string     `json:"form_slug"`
+	CreatorUsername string     `json:"creator_username"`
+	Status          TaskStatus `json:"status"`
+	Idx             int32      `json:"idx"`
+}
+
+type GetTaskByStatusAndIndexRow struct {
+	FormVersionID  int64              `json:"form_version_id"`
+	ID             int64              `json:"id"`
+	ClientID       uuid.UUID          `json:"client_id"`
+	ClientUsername string             `json:"client_username"`
+	Slug           string             `json:"slug"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	TaskName       string             `json:"task_name"`
+	TaskSummary    string             `json:"task_summary"`
+	Status         TaskStatus         `json:"status"`
+	Idx            int32              `json:"idx"`
+}
+
+func (q *Queries) GetTaskByStatusAndIndex(ctx context.Context, arg GetTaskByStatusAndIndexParams) (*GetTaskByStatusAndIndexRow, error) {
+	row := q.db.QueryRow(ctx, getTaskByStatusAndIndex,
+		arg.FormSlug,
+		arg.CreatorUsername,
+		arg.Status,
+		arg.Idx,
+	)
+	var i GetTaskByStatusAndIndexRow
+	err := row.Scan(
+		&i.FormVersionID,
+		&i.ID,
+		&i.ClientID,
+		&i.ClientUsername,
+		&i.Slug,
+		&i.CreatedAt,
+		&i.TaskName,
+		&i.TaskSummary,
+		&i.Status,
+		&i.Idx,
+	)
+	return &i, err
 }
 
 const getTaskFields = `-- name: GetTaskFields :one
@@ -478,13 +596,16 @@ SELECT
     tasks.client_id,
     tasks.task_name,
     tasks.task_summary,
-    status,
-    tasks.created_at
+    tasks.created_at,
+
+    ts.status,
+    ts.idx
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
     INNER JOIN forms ON forms.id = form_versions.form_id
     INNER JOIN users ON forms.creator_id = users.id
+    INNER JOIN task_states AS ts ON ts.task_id = tasks.id
 WHERE
     users.username = $1 AND
     forms.slug = $2 AND
@@ -503,8 +624,9 @@ type GetTaskHeaderRow struct {
 	ClientID      uuid.UUID          `json:"client_id"`
 	TaskName      string             `json:"task_name"`
 	TaskSummary   string             `json:"task_summary"`
-	Status        TaskStatus         `json:"status"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	Status        TaskStatus         `json:"status"`
+	Idx           int32              `json:"idx"`
 }
 
 func (q *Queries) GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*GetTaskHeaderRow, error) {
@@ -516,24 +638,112 @@ func (q *Queries) GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*
 		&i.ClientID,
 		&i.TaskName,
 		&i.TaskSummary,
-		&i.Status,
 		&i.CreatedAt,
+		&i.Status,
+		&i.Idx,
 	)
 	return &i, err
 }
 
+const insertTask = `-- name: InsertTask :exec
+UPDATE task_states
+    SET idx =
+        CASE WHEN idx = -1 THEN $1
+             WHEN idx >= $1 THEN idx+1
+             ELSE idx
+        END
+    WHERE status = $2 AND (idx = -1 OR idx >= $1)
+`
+
+type InsertTaskParams struct {
+	NewIndex int32      `json:"new_index"`
+	Status   TaskStatus `json:"status"`
+}
+
+func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) error {
+	_, err := q.db.Exec(ctx, insertTask, arg.NewIndex, arg.Status)
+	return err
+}
+
+const removeTask = `-- name: RemoveTask :exec
+UPDATE task_states
+    SET idx = -1
+    WHERE task_id = $1
+`
+
+func (q *Queries) RemoveTask(ctx context.Context, taskID1 int64) error {
+	_, err := q.db.Exec(ctx, removeTask, taskID1)
+	return err
+}
+
+const reorderTaskStatuses = `-- name: ReorderTaskStatuses :exec
+UPDATE task_states
+    SET idx = new_indices.value
+    FROM (
+        SELECT
+            task_id,
+            (row_number() OVER (PARTITION BY status ORDER BY idx ASC)-1) AS value
+        FROM
+            task_states
+        WHERE
+            idx <> -1
+    ) AS new_indices
+        INNER JOIN tasks ON new_indices.task_id = tasks.id
+        INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+        INNER JOIN forms ON forms.id = form_versions.form_id
+        INNER JOIN users AS creators ON creators.id = forms.creator_id
+    WHERE
+        creators.username = $1 AND
+        forms.slug = $2 AND
+        task_states.task_id = new_indices.task_id AND
+        idx <> -1
+`
+
+type ReorderTaskStatusesParams struct {
+	CreatorUsername string `json:"creator_username"`
+	FormSlug        string `json:"form_slug"`
+}
+
+func (q *Queries) ReorderTaskStatuses(ctx context.Context, arg ReorderTaskStatusesParams) error {
+	_, err := q.db.Exec(ctx, reorderTaskStatuses, arg.CreatorUsername, arg.FormSlug)
+	return err
+}
+
+const swapTasks = `-- name: SwapTasks :exec
+UPDATE task_states
+    SET idx =
+        CASE WHEN task_id = $1 THEN (
+            SELECT idx FROM task_states WHERE task_id = $2
+        ) WHEN task_id = $2 THEN (
+            SELECT idx FROM task_states WHERE task_id = $1
+        ) ELSE idx
+        END
+    WHERE task_id = $1 OR task_id = $2
+`
+
+type SwapTasksParams struct {
+	TaskID1 *int64 `json:"task_id_1"`
+	TaskID2 *int64 `json:"task_id_2"`
+}
+
+func (q *Queries) SwapTasks(ctx context.Context, arg SwapTasksParams) error {
+	_, err := q.db.Exec(ctx, swapTasks, arg.TaskID1, arg.TaskID2)
+	return err
+}
+
 const updateTaskStatus = `-- name: UpdateTaskStatus :many
-UPDATE tasks
+UPDATE task_states
     SET status = $1
     FROM
         form_versions
         JOIN forms ON form_versions.form_id = forms.id
         JOIN users AS creator ON forms.creator_id = creator.id
+        INNER JOIN tasks ON tasks.form_version_id = form_versions.id
     WHERE
-        form_versions.id = tasks.form_version_id AND
         creator.username = $2 AND
         forms.slug = $3 AND
-        tasks.slug = $4
+        tasks.slug = $4 AND
+        tasks.id = task_states.task_id
     RETURNING
         1
 `

@@ -1,12 +1,37 @@
 {{define "title"}}{{.service.Name}} Dashboard{{end}}
 {{define "scripts"}}
   <script>
-  async function updateStatus(task, status) {
-    await fetch(`/app/{{.params.username}}/services/{{.params.servicename}}/tasks/${task}?status=${status}`, {
-      method: "PUT",
-    });
-    htmx.trigger(document.getElementById("tabarea"), "refresh")
-  }
+  {{with .session}}
+    {{if eq .Username $.params.username}}
+      async function updateStatus(task, status) {
+        await fetch(`/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/${task}?status=${status}`, {
+          method: "PUT",
+        });
+        htmx.trigger(document.getElementById("tabarea"), "refresh")
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('tabarea').addEventListener('htmx:afterOnLoad', (ev) => {
+          status = document.getElementById('pageIdx').value
+          Sortable.create(document.getElementById('tasktable'), {
+            animation: 150,
+            onEnd: async (ev) => {
+              console.log(ev);
+              params = new URLSearchParams({
+                status: status,
+                src: ev.oldIndex,
+                dest: ev.newIndex,
+              })
+              await fetch(`/api/users/{{$.params.username}}/services/{{$.params.servicename}}/move?${params}`, {
+                method: "POST",
+              });
+              htmx.trigger(document.getElementById("tabarea"), "refresh")
+            },
+          });
+        })
+      })
+    {{end}}
+  {{end}}
   </script>
 {{end}}
 {{define "header"}}
