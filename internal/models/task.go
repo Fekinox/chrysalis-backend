@@ -38,10 +38,13 @@ type Task struct {
 	FormSlug      string `json:"form_slug"`
 	TaskSlug      string `json:"task_slug"`
 
-	ClientID       uuid.UUID          `json:"client_id"`
-	ClientUsername string             `json:"client_username"`
-	Status         db.TaskStatus      `json:"status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ClientID       uuid.UUID `json:"client_id"`
+	ClientUsername string    `json:"client_username"`
+
+	TaskName    string             `json:"task_name"`
+	TaskSummary string             `json:"task_summary"`
+	Status      db.TaskStatus      `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 
 	Fields []formfield.FilledFormField `json:"fields"`
 }
@@ -51,6 +54,8 @@ type CreateTaskParams struct {
 	ClientID        uuid.UUID
 	FormSlug        string
 	Fields          []formfield.FilledFormField
+	TaskName        string
+	TaskSummary     string
 }
 
 type GetTaskParams struct {
@@ -97,6 +102,8 @@ func CreateTask(
 							FormVersionID: form.FormVersionID,
 							ClientID:      p.ClientID,
 							Slug:          taskSlug,
+							TaskName:      p.TaskName,
+							TaskSummary:   p.TaskSummary,
 						})
 
 					return err
@@ -160,6 +167,8 @@ func CreateTask(
 
 			ClientID:       taskHeader.ClientID,
 			ClientUsername: client.Username,
+			TaskName:       taskHeader.TaskName,
+			TaskSummary:    taskHeader.TaskSummary,
 			Status:         taskHeader.Status,
 			CreatedAt:      taskHeader.CreatedAt,
 			Fields:         p.Fields,
@@ -232,6 +241,8 @@ func GetTask(
 			ClientID:       taskHeader.ClientID,
 			ClientUsername: client.Username,
 			Status:         taskHeader.Status,
+			TaskName:       taskHeader.TaskName,
+			TaskSummary:    taskHeader.TaskSummary,
 			CreatedAt:      taskHeader.CreatedAt,
 			Fields:         parsedFields,
 		}

@@ -133,13 +133,17 @@ const createTask = `-- name: CreateTask :one
 INSERT INTO tasks (
     form_version_id,
     client_id,
+    task_name,
+    task_summary,
     slug
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4, $5
 ) RETURNING
     id,
     client_id,
     form_version_id,
+    task_name,
+    task_summary,
     status,
     slug,
     created_at
@@ -148,6 +152,8 @@ INSERT INTO tasks (
 type CreateTaskParams struct {
 	FormVersionID int64     `json:"form_version_id"`
 	ClientID      uuid.UUID `json:"client_id"`
+	TaskName      string    `json:"task_name"`
+	TaskSummary   string    `json:"task_summary"`
 	Slug          string    `json:"slug"`
 }
 
@@ -155,18 +161,28 @@ type CreateTaskRow struct {
 	ID            int64              `json:"id"`
 	ClientID      uuid.UUID          `json:"client_id"`
 	FormVersionID int64              `json:"form_version_id"`
+	TaskName      string             `json:"task_name"`
+	TaskSummary   string             `json:"task_summary"`
 	Status        TaskStatus         `json:"status"`
 	Slug          string             `json:"slug"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (*CreateTaskRow, error) {
-	row := q.db.QueryRow(ctx, createTask, arg.FormVersionID, arg.ClientID, arg.Slug)
+	row := q.db.QueryRow(ctx, createTask,
+		arg.FormVersionID,
+		arg.ClientID,
+		arg.TaskName,
+		arg.TaskSummary,
+		arg.Slug,
+	)
 	var i CreateTaskRow
 	err := row.Scan(
 		&i.ID,
 		&i.ClientID,
 		&i.FormVersionID,
+		&i.TaskName,
+		&i.TaskSummary,
 		&i.Status,
 		&i.Slug,
 		&i.CreatedAt,
@@ -245,27 +261,30 @@ SELECT
     tasks.client_id,
     status,
     tasks.slug AS task_slug,
-    tasks.created_at
+    tasks.created_at,
+    client.username AS client_username
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
     INNER JOIN forms ON forms.id = form_versions.form_id
     INNER JOIN users AS creator ON forms.creator_id = creator.id
+    INNER JOIN users AS client ON tasks.client_id = client.id
 WHERE
     creator.username = $1
 `
 
 type GetInboundTasksRow struct {
-	FormID        int64              `json:"form_id"`
-	Username      string             `json:"username"`
-	FormVersionID int64              `json:"form_version_id"`
-	Name          string             `json:"name"`
-	FormSlug      string             `json:"form_slug"`
-	TaskID        int64              `json:"task_id"`
-	ClientID      uuid.UUID          `json:"client_id"`
-	Status        TaskStatus         `json:"status"`
-	TaskSlug      string             `json:"task_slug"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	FormID         int64              `json:"form_id"`
+	Username       string             `json:"username"`
+	FormVersionID  int64              `json:"form_version_id"`
+	Name           string             `json:"name"`
+	FormSlug       string             `json:"form_slug"`
+	TaskID         int64              `json:"task_id"`
+	ClientID       uuid.UUID          `json:"client_id"`
+	Status         TaskStatus         `json:"status"`
+	TaskSlug       string             `json:"task_slug"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ClientUsername string             `json:"client_username"`
 }
 
 func (q *Queries) GetInboundTasks(ctx context.Context, creatorUsername string) ([]*GetInboundTasksRow, error) {
@@ -288,6 +307,7 @@ func (q *Queries) GetInboundTasks(ctx context.Context, creatorUsername string) (
 			&i.Status,
 			&i.TaskSlug,
 			&i.CreatedAt,
+			&i.ClientUsername,
 		); err != nil {
 			return nil, err
 		}
@@ -310,7 +330,9 @@ SELECT
     tasks.client_id,
     status,
     tasks.slug AS task_slug,
-    tasks.created_at
+    tasks.created_at,
+    client.username AS client_username,
+    creator.username AS client_username
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
@@ -322,16 +344,18 @@ WHERE
 `
 
 type GetOutboundTasksRow struct {
-	FormID        int64              `json:"form_id"`
-	CreatorID     uuid.UUID          `json:"creator_id"`
-	FormVersionID int64              `json:"form_version_id"`
-	Name          string             `json:"name"`
-	FormSlug      string             `json:"form_slug"`
-	TaskID        int64              `json:"task_id"`
-	ClientID      uuid.UUID          `json:"client_id"`
-	Status        TaskStatus         `json:"status"`
-	TaskSlug      string             `json:"task_slug"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	FormID           int64              `json:"form_id"`
+	CreatorID        uuid.UUID          `json:"creator_id"`
+	FormVersionID    int64              `json:"form_version_id"`
+	Name             string             `json:"name"`
+	FormSlug         string             `json:"form_slug"`
+	TaskID           int64              `json:"task_id"`
+	ClientID         uuid.UUID          `json:"client_id"`
+	Status           TaskStatus         `json:"status"`
+	TaskSlug         string             `json:"task_slug"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	ClientUsername   string             `json:"client_username"`
+	ClientUsername_2 string             `json:"client_username_2"`
 }
 
 func (q *Queries) GetOutboundTasks(ctx context.Context, clientUsername string) ([]*GetOutboundTasksRow, error) {
@@ -354,6 +378,8 @@ func (q *Queries) GetOutboundTasks(ctx context.Context, clientUsername string) (
 			&i.Status,
 			&i.TaskSlug,
 			&i.CreatedAt,
+			&i.ClientUsername,
+			&i.ClientUsername_2,
 		); err != nil {
 			return nil, err
 		}
@@ -373,7 +399,9 @@ SELECT
     clients.username AS client_username,
     status,
     tasks.slug,
-    tasks.created_at
+    tasks.created_at,
+    tasks.task_name,
+    tasks.task_summary
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
@@ -398,6 +426,8 @@ type GetServiceTasksBySlugRow struct {
 	Status         TaskStatus         `json:"status"`
 	Slug           string             `json:"slug"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	TaskName       string             `json:"task_name"`
+	TaskSummary    string             `json:"task_summary"`
 }
 
 func (q *Queries) GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasksBySlugParams) ([]*GetServiceTasksBySlugRow, error) {
@@ -417,6 +447,8 @@ func (q *Queries) GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasks
 			&i.Status,
 			&i.Slug,
 			&i.CreatedAt,
+			&i.TaskName,
+			&i.TaskSummary,
 		); err != nil {
 			return nil, err
 		}
@@ -444,6 +476,8 @@ SELECT
     tasks.form_version_id,
     tasks.id,
     tasks.client_id,
+    tasks.task_name,
+    tasks.task_summary,
     status,
     tasks.created_at
 FROM
@@ -467,6 +501,8 @@ type GetTaskHeaderRow struct {
 	FormVersionID int64              `json:"form_version_id"`
 	ID            int64              `json:"id"`
 	ClientID      uuid.UUID          `json:"client_id"`
+	TaskName      string             `json:"task_name"`
+	TaskSummary   string             `json:"task_summary"`
 	Status        TaskStatus         `json:"status"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
@@ -478,6 +514,8 @@ func (q *Queries) GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*
 		&i.FormVersionID,
 		&i.ID,
 		&i.ClientID,
+		&i.TaskName,
+		&i.TaskSummary,
 		&i.Status,
 		&i.CreatedAt,
 	)

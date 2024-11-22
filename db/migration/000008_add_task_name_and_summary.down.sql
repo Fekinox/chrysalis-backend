@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE tasks
+    DROP COLUMN IF EXISTS task_name,
+    DROP COLUMN IF EXISTS task_summary;
+
+COMMIT;

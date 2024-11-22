@@ -2,13 +2,17 @@
 INSERT INTO tasks (
     form_version_id,
     client_id,
+    task_name,
+    task_summary,
     slug
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4, $5
 ) RETURNING
     id,
     client_id,
     form_version_id,
+    task_name,
+    task_summary,
     status,
     slug,
     created_at;
@@ -24,7 +28,9 @@ SELECT
     tasks.client_id,
     status,
     tasks.slug AS task_slug,
-    tasks.created_at
+    tasks.created_at,
+    client.username AS client_username,
+    creator.username AS client_username
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
@@ -45,12 +51,14 @@ SELECT
     tasks.client_id,
     status,
     tasks.slug AS task_slug,
-    tasks.created_at
+    tasks.created_at,
+    client.username AS client_username
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
     INNER JOIN forms ON forms.id = form_versions.form_id
     INNER JOIN users AS creator ON forms.creator_id = creator.id
+    INNER JOIN users AS client ON tasks.client_id = client.id
 WHERE
     creator.username = sqlc.arg('creator_username');
     
@@ -63,7 +71,9 @@ SELECT
     clients.username AS client_username,
     status,
     tasks.slug,
-    tasks.created_at
+    tasks.created_at,
+    tasks.task_name,
+    tasks.task_summary
 FROM
     tasks
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
@@ -79,6 +89,8 @@ SELECT
     tasks.form_version_id,
     tasks.id,
     tasks.client_id,
+    tasks.task_name,
+    tasks.task_summary,
     status,
     tasks.created_at
 FROM

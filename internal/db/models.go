@@ -173,6 +173,8 @@ type Task struct {
 	Status        TaskStatus         `json:"status"`
 	Slug          string             `json:"slug"`
 	FormVersionID int64              `json:"form_version_id"`
+	TaskName      string             `json:"task_name"`
+	TaskSummary   string             `json:"task_summary"`
 }
 
 type TextField struct {

@@ -419,7 +419,9 @@ func IsUser(c *gin.Context, user string) bool {
 }
 
 type CreateTaskParams struct {
-	Fields []formfield.FilledFormField `json:"fields"`
+	Name    string                      `json:"task_name"`
+	Summary string                      `json:"task_summary"`
+	Fields  []formfield.FilledFormField `json:"fields"`
 }
 
 func generateTaskSlug() (string, error) {
@@ -531,8 +533,19 @@ func (jc *JSONAPIController) CreateTaskForService(c *gin.Context) {
 		FormSlug:        serviceSlug,
 		ClientID:        sessionData.UserID,
 		Fields:          params.Fields,
+		TaskName:        params.Name,
+		TaskSummary:     params.Summary,
 	})
 	if err != nil {
+		var pgError *pgconn.PgError
+		if errors.As(err, &pgError) {
+			if pgError.ConstraintName == "nonempty_task_name" {
+				AbortError(c, http.StatusBadRequest, errors.New("Task name cannot be empty"))
+				return
+			}
+			AbortError(c, http.StatusInternalServerError, err)
+			return
+		}
 		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
