@@ -222,7 +222,10 @@ func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 		return
 	}
 
+	sessionData, _ := GetSessionData(c)
+
 	c.HTML(http.StatusOK, "serviceDashboardTab.html.tmpl", gin.H{
+		"session": sessionData,
 		"params": gin.H{
 			"status":      c.Param("status"),
 			"username":    c.Param("username"),
@@ -537,7 +540,7 @@ func (mc *MainController) HandleLogin(c *gin.Context) {
 		true,
 	)
 
-	c.Redirect(http.StatusSeeOther, fmt.Sprintf("/app/%s/services", username))
+	c.Redirect(http.StatusSeeOther, "/app/dashboard")
 }
 
 func (mc *MainController) HandleRegister(c *gin.Context) {

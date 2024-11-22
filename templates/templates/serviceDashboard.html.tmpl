@@ -14,6 +14,14 @@
   {{template "navbar" .}}
 {{end}}
 {{define "content"}}
+  <div style="display: flex">
+    {{with .session}}
+      {{if eq .Username $.params.username}}
+      <a href="/app/{{$.params.username}}/services/{{$.params.servicename}}/edit">Edit Service</a> 
+      {{end}}
+    {{end}}
+    <a href="/app/{{.params.username}}/services/{{.params.servicename}}/form">Create Task</a>
+  </div>
   <h2>Tasks</h2>
   <hr>
   <section

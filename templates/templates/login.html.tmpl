@@ -16,6 +16,7 @@
   {{end}}
   <section>
     <form action="/app/login" method="post">
+      <input type="hidden" name="redirect" value={{.redirect}}></input>
       <label for="username">Username</label>
       <input type="text" id="username" name="username" required>
       <label for="password">Password</label>
