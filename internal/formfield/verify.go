@@ -49,7 +49,7 @@ func Validate(fields []FormField, filledFields []FilledFormField) error {
 			return errors.New("Field type mismatch")
 		}
 
-		if fields[i].Required && !fields[i].Required {
+		if fields[i].Required && !filledFields[i].Filled {
 			return fmt.Errorf("Required field %q is missing", fields[i].Prompt)
 		}
 
