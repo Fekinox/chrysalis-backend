@@ -20,15 +20,16 @@ var (
 )
 
 type ServiceForm struct {
-	FormID        int64                 `json:"id"`
-	CreatorID     uuid.UUID             `json:"creator_id"`
-	Slug          string                `json:"slug"`
-	FormVersionID int64                 `json:"form_version_id"`
-	Name          string                `json:"name"`
-	Description   string                `json:"description"`
-	CreatedAt     pgtype.Timestamptz    `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz    `json:"updated_at"`
-	Fields        []formfield.FormField `json:"fields"`
+	FormID          int64                 `json:"id"`
+	CreatorID       uuid.UUID             `json:"creator_id"`
+	CreatorUsername string                `json:"creator_username"`
+	Slug            string                `json:"slug"`
+	FormVersionID   int64                 `json:"form_version_id"`
+	Name            string                `json:"name"`
+	Description     string                `json:"description"`
+	CreatedAt       pgtype.Timestamptz    `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz    `json:"updated_at"`
+	Fields          []formfield.FormField `json:"fields"`
 }
 
 type ServiceFormParams struct {
@@ -72,16 +73,22 @@ func GetServiceFormVersion(
 			}
 		}
 
+		creator, err := stx.GetUserByUUID(ctx, service.CreatorID)
+		if err != nil {
+			return err
+		}
+
 		form = &ServiceForm{
-			FormID:        service.ID,
-			CreatorID:     service.CreatorID,
-			Slug:          service.Slug,
-			FormVersionID: service.FormVersionID,
-			Name:          service.Name,
-			Description:   service.Description,
-			CreatedAt:     service.CreatedAt,
-			UpdatedAt:     service.UpdatedAt,
-			Fields:        parsedFields,
+			FormID:          service.ID,
+			CreatorID:       service.CreatorID,
+			CreatorUsername: creator.Username,
+			Slug:            service.Slug,
+			FormVersionID:   service.FormVersionID,
+			Name:            service.Name,
+			Description:     service.Description,
+			CreatedAt:       service.CreatedAt,
+			UpdatedAt:       service.UpdatedAt,
+			Fields:          parsedFields,
 		}
 
 		return nil
@@ -128,15 +135,16 @@ func GetServiceForm(
 		}
 
 		form = &ServiceForm{
-			FormID:        service.ID,
-			CreatorID:     service.CreatorID,
-			Slug:          service.Slug,
-			FormVersionID: service.FormVersionID,
-			Name:          service.Name,
-			Description:   service.Description,
-			CreatedAt:     service.CreatedAt,
-			UpdatedAt:     service.UpdatedAt,
-			Fields:        parsedFields,
+			FormID:          service.ID,
+			CreatorID:       service.CreatorID,
+			CreatorUsername: p.Username,
+			Slug:            service.Slug,
+			FormVersionID:   service.FormVersionID,
+			Name:            service.Name,
+			Description:     service.Description,
+			CreatedAt:       service.CreatedAt,
+			UpdatedAt:       service.UpdatedAt,
+			Fields:          parsedFields,
 		}
 
 		return nil
@@ -188,16 +196,22 @@ func createServiceVersion(
 			}
 		}
 
+		creator, err := stx.GetUserByUUID(ctx, frm.CreatorID)
+		if err != nil {
+			return err
+		}
+
 		form = &ServiceForm{
-			FormID:        version.FormID,
-			FormVersionID: version.ID,
-			CreatorID:     frm.CreatorID,
-			Slug:          frm.Slug,
-			Name:          version.Name,
-			Description:   version.Description,
-			CreatedAt:     frm.CreatedAt,
-			UpdatedAt:     version.CreatedAt,
-			Fields:        p.Fields,
+			FormID:          version.FormID,
+			FormVersionID:   version.ID,
+			CreatorID:       frm.CreatorID,
+			CreatorUsername: creator.Username,
+			Slug:            frm.Slug,
+			Name:            version.Name,
+			Description:     version.Description,
+			CreatedAt:       frm.CreatedAt,
+			UpdatedAt:       version.CreatedAt,
+			Fields:          p.Fields,
 		}
 
 		return nil

@@ -38,9 +38,10 @@ type Task struct {
 	FormSlug      string `json:"form_slug"`
 	TaskSlug      string `json:"task_slug"`
 
-	ClientID  uuid.UUID          `json:"client_id"`
-	Status    db.TaskStatus      `json:"status"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ClientID       uuid.UUID          `json:"client_id"`
+	ClientUsername string             `json:"client_username"`
+	Status         db.TaskStatus      `json:"status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 
 	Fields []formfield.FilledFormField `json:"fields"`
 }
@@ -71,6 +72,11 @@ func CreateTask(
 				Username: p.CreatorUsername,
 				Service:  p.FormSlug,
 			})
+		if err != nil {
+			return err
+		}
+
+		client, err := s.GetUserByUUID(ctx, p.ClientID)
 		if err != nil {
 			return err
 		}
@@ -152,10 +158,11 @@ func CreateTask(
 			FormSlug:      form.Slug,
 			FormVersionID: form.FormVersionID,
 
-			ClientID:  taskHeader.ClientID,
-			Status:    taskHeader.Status,
-			CreatedAt: taskHeader.CreatedAt,
-			Fields:    p.Fields,
+			ClientID:       taskHeader.ClientID,
+			ClientUsername: client.Username,
+			Status:         taskHeader.Status,
+			CreatedAt:      taskHeader.CreatedAt,
+			Fields:         p.Fields,
 		}
 
 		return nil
@@ -210,6 +217,11 @@ func GetTask(
 			}
 		}
 
+		client, err := s.GetUserByUUID(ctx, taskHeader.ClientID)
+		if err != nil {
+			return err
+		}
+
 		task = &Task{
 			TaskID:        taskHeader.ID,
 			TaskSlug:      p.TaskName,
@@ -217,10 +229,11 @@ func GetTask(
 			FormSlug:      form.Slug,
 			FormVersionID: form.FormVersionID,
 
-			ClientID:  taskHeader.ClientID,
-			Status:    taskHeader.Status,
-			CreatedAt: taskHeader.CreatedAt,
-			Fields:    parsedFields,
+			ClientID:       taskHeader.ClientID,
+			ClientUsername: client.Username,
+			Status:         taskHeader.Status,
+			CreatedAt:      taskHeader.CreatedAt,
+			Fields:         parsedFields,
 		}
 
 		return nil
