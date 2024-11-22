@@ -358,6 +358,8 @@ func (mc *MainController) CreateTask(c *gin.Context) {
 		FormSlug:        serviceSlug,
 		ClientID:        sessionData.UserID,
 		Fields:          params.Fields,
+		TaskName:        params.Name,
+		TaskSummary:     params.Summary,
 	})
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)

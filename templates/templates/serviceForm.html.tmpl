@@ -41,6 +41,15 @@
           ">
           <h2>{{.form.Name}}</h2>
           <p>{{.form.Description}}</p>
+          <input
+          type="text"
+          placeholder="Task Name"
+          x-model="taskName"
+          required>
+          <input
+          type="text"
+          placeholder="Task Summary"
+          x-model="taskSummary">
         </div>
       </div>
       <div x-ref="fieldList"

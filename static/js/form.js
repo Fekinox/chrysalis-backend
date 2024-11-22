@@ -21,6 +21,8 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('form', () => ({
     title: '',
     description: '',
+    taskName: 'Task Name',
+    taskSummary: 'Task Summary',
     fields: [],
     counter: 0,
 
@@ -82,6 +84,8 @@ document.addEventListener('alpine:init', () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            "task_name": this.taskName,
+            "task_summary": this.taskSummary,
             "fields": this.fields.map((f) => {
               res = {
                 type: f.type,
