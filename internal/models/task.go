@@ -44,7 +44,7 @@ type Task struct {
 	TaskName    string             `json:"task_name"`
 	TaskSummary string             `json:"task_summary"`
 	Status      db.TaskStatus      `json:"status"`
-	Index	int32 `json:"index"`
+	Index       int32              `json:"index"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 
 	Fields []formfield.FilledFormField `json:"fields"`
@@ -69,30 +69,30 @@ type UpdateTaskParams struct {
 	CreatorUsername string
 	ServiceName     string
 	TaskName        string
-	Status db.TaskStatus
+	Status          db.TaskStatus
 }
 
 type SwapTasksParams struct {
 	CreatorUsername string
-	ServiceName string
-	Task1Name string
-	Task2Name string
+	ServiceName     string
+	Task1Name       string
+	Task2Name       string
 }
 
 type SwapTasksByStatusAndIdParams struct {
 	CreatorUsername string
-	ServiceName string
-	Status db.TaskStatus
-	Task1Index int
-	Task2Index int
+	ServiceName     string
+	Status          db.TaskStatus
+	Task1Index      int
+	Task2Index      int
 }
 
 type MoveTaskParams struct {
 	CreatorUsername string
-	ServiceName string
-	Status db.TaskStatus
-	OldIndex int
-	NewIndex int
+	ServiceName     string
+	Status          db.TaskStatus
+	OldIndex        int
+	NewIndex        int
 }
 
 func CreateTask(
@@ -204,7 +204,7 @@ func CreateTask(
 			TaskName:       taskHeader.TaskName,
 			TaskSummary:    taskHeader.TaskSummary,
 			Status:         taskState.Status,
-			Index:			taskState.Idx,
+			Index:          taskState.Idx,
 			CreatedAt:      taskHeader.CreatedAt,
 			Fields:         p.Fields,
 		}
@@ -276,7 +276,7 @@ func GetTask(
 			ClientID:       taskHeader.ClientID,
 			ClientUsername: client.Username,
 			Status:         taskHeader.Status,
-			Index:         taskHeader.Idx,
+			Index:          taskHeader.Idx,
 			TaskName:       taskHeader.TaskName,
 			TaskSummary:    taskHeader.TaskSummary,
 			CreatedAt:      taskHeader.CreatedAt,
@@ -315,7 +315,7 @@ func SwapTasks(
 		}
 
 		if task1.Status != task2.Status {
-		  return errors.New("Tasks must have same status to be swapped")
+			return errors.New("Tasks must have same status to be swapped")
 		}
 
 		return s.SwapTasks(ctx, db.SwapTasksParams{
@@ -333,25 +333,25 @@ func SwapTasksByStatusAndId(
 	return d.BeginFunc(ctx, func(s *db.Store) error {
 		task1, err := s.GetTaskByStatusAndIndex(ctx, db.GetTaskByStatusAndIndexParams{
 			CreatorUsername: p.CreatorUsername,
-			FormSlug: p.ServiceName,
-			Status: p.Status,	
-			Idx: int32(p.Task1Index),
+			FormSlug:        p.ServiceName,
+			Status:          p.Status,
+			Idx:             int32(p.Task1Index),
 		})
 		if err != nil {
 			return nil
 		}
 		task2, err := s.GetTaskByStatusAndIndex(ctx, db.GetTaskByStatusAndIndexParams{
 			CreatorUsername: p.CreatorUsername,
-			FormSlug: p.ServiceName,
-			Status: p.Status,	
-			Idx: int32(p.Task2Index),
+			FormSlug:        p.ServiceName,
+			Status:          p.Status,
+			Idx:             int32(p.Task2Index),
 		})
 		if err != nil {
 			return nil
 		}
 
 		if task1.Status != task2.Status {
-		  return errors.New("Tasks must have same status to be swapped")
+			return errors.New("Tasks must have same status to be swapped")
 		}
 
 		return s.SwapTasks(ctx, db.SwapTasksParams{
@@ -369,9 +369,9 @@ func MoveTask(
 	return d.BeginFunc(ctx, func(s *db.Store) error {
 		task, err := s.GetTaskByStatusAndIndex(ctx, db.GetTaskByStatusAndIndexParams{
 			CreatorUsername: p.CreatorUsername,
-			FormSlug: p.ServiceName,
-			Status: p.Status,	
-			Idx: int32(p.OldIndex),
+			FormSlug:        p.ServiceName,
+			Status:          p.Status,
+			Idx:             int32(p.OldIndex),
 		})
 		if err != nil {
 			return err
@@ -384,7 +384,7 @@ func MoveTask(
 
 		err = s.ReorderTaskStatuses(ctx, db.ReorderTaskStatusesParams{
 			CreatorUsername: p.CreatorUsername,
-			FormSlug: p.ServiceName,
+			FormSlug:        p.ServiceName,
 		})
 		if err != nil {
 			return err
@@ -392,7 +392,7 @@ func MoveTask(
 
 		err = s.InsertTask(ctx, db.InsertTaskParams{
 			NewIndex: int32(p.NewIndex),
-			Status: p.Status,
+			Status:   p.Status,
 		})
 		if err != nil {
 			return err
@@ -424,7 +424,7 @@ func UpdateTaskStatus(
 
 		err = s.ReorderTaskStatuses(ctx, db.ReorderTaskStatusesParams{
 			CreatorUsername: p.CreatorUsername,
-			FormSlug: p.ServiceName,
+			FormSlug:        p.ServiceName,
 		})
 		if err != nil {
 			return err

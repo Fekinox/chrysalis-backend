@@ -638,13 +638,17 @@ func (jc *JSONAPIController) SwapTasksStatusAndIndex(c *gin.Context) {
 		return
 	}
 
-	err = models.SwapTasksByStatusAndId(c.Request.Context(), jc.con.store, models.SwapTasksByStatusAndIdParams{
-		CreatorUsername: c.Param("username"),
-		ServiceName:     c.Param("servicename"),
-		Status:          db.TaskStatus(c.Query("status")),
-		Task1Index:      task1,
-		Task2Index:      task2,
-	})
+	err = models.SwapTasksByStatusAndId(
+		c.Request.Context(),
+		jc.con.store,
+		models.SwapTasksByStatusAndIdParams{
+			CreatorUsername: c.Param("username"),
+			ServiceName:     c.Param("servicename"),
+			Status:          db.TaskStatus(c.Query("status")),
+			Task1Index:      task1,
+			Task2Index:      task2,
+		},
+	)
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 	}

@@ -248,9 +248,9 @@ func (mc *MainController) UpdateTask(c *gin.Context) {
 
 	err := models.UpdateTaskStatus(c.Request.Context(), mc.con.store, models.UpdateTaskParams{
 		CreatorUsername: serviceCreator,
-		ServiceName: serviceName,
-		TaskName: taskName,
-		Status: db.TaskStatus(c.Query("status")),
+		ServiceName:     serviceName,
+		TaskName:        taskName,
+		Status:          db.TaskStatus(c.Query("status")),
 	})
 	if errors.Is(err, models.ErrTaskNotFound) {
 		AbortError(c, http.StatusNotFound, fmt.Errorf("%w: %v", ErrNotFound, serviceCreator))
@@ -273,9 +273,9 @@ func (mc *MainController) SwapTasks(c *gin.Context) {
 
 	err := models.SwapTasks(c.Request.Context(), mc.con.store, models.SwapTasksParams{
 		CreatorUsername: serviceCreator,
-		ServiceName: serviceSlug,
-		Task1Name: task1,
-		Task2Name: task2,
+		ServiceName:     serviceSlug,
+		Task1Name:       task1,
+		Task2Name:       task2,
 	})
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
