@@ -49,20 +49,26 @@ func Validate(fields []FormField, filledFields []FilledFormField) error {
 			return errors.New("Field type mismatch")
 		}
 
-		if fields[i].Required && !filledFields[i].Filled {
+		if fields[i].Required && (!filledFields[i].Filled || filledFields[i].Data == nil) {
 			return fmt.Errorf("Required field %q is missing", fields[i].Prompt)
 		}
 
 		switch l := fields[i].Data.(type) {
 		case *CheckboxFieldData:
-			r := filledFields[i].Data.(*FilledCheckboxFieldData)
+			r, ok := filledFields[i].Data.(*FilledCheckboxFieldData)
+			if !ok {
+				continue
+			}
 			for _, opt := range r.SelectedOptions {
 				if !slices.Contains(l.Options, opt) {
 					return fmt.Errorf("Option %q not valid for field", opt)
 				}
 			}
 		case *RadioFieldData:
-			r := filledFields[i].Data.(*FilledRadioFieldData)
+			r, ok := filledFields[i].Data.(*FilledRadioFieldData)
+			if !ok {
+				continue
+			}
 			if !slices.Contains(l.Options, r.SelectedOption) {
 				return fmt.Errorf("Option %q not valid for field", r.SelectedOption)
 			}
