@@ -2,6 +2,9 @@
 {{define "scripts"}}
   <script src="/static/js/form.js"></script>
 {{end}}
+{{define "header"}}
+  {{template "navbar" .}}
+{{end}}
 {{define "content"}}
   <div x-data="form"
     x-init="loadFromURL('{{.params.username}}', '{{.params.service}}')"

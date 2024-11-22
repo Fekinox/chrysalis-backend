@@ -137,6 +137,13 @@ func HTMLErrorRenderer(c *gin.Context, data any) {
 	c.HTML(-1, "errorPage.html.tmpl", data)
 }
 
+func RedirectTo(dests ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ContextRedirect(c, http.StatusSeeOther, dests...)
+		c.Abort()
+	}
+}
+
 // Redirects non-HTMX requests to the given URI.
 func HTMXRedirect(dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -144,6 +151,7 @@ func HTMXRedirect(dests ...string) gin.HandlerFunc {
 			c.Next()
 		} else {
 			ContextRedirect(c, http.StatusSeeOther, dests...)
+			c.Abort()
 		}
 	}
 }

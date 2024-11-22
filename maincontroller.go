@@ -22,7 +22,13 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.GET("/helloworld", DummyTemplateHandler)
 	app.GET("/:username/services", mc.GetUserServices)
 
+	app.GET("/header", HTMXRedirect("/app"), mc.Header)
+
 	app.GET("/:username/services/:servicename/dashboard", mc.ServiceDashboard)
+	app.GET(
+		"/:username/services/:servicename",
+		RedirectTo("/app/:username/services/:servicename/dashboard"),
+	)
 	app.GET(
 		"/:username/services/:servicename/dashboard/tabs/:status",
 		HTMXRedirect("/app/:username/services/:servicename"),
@@ -81,6 +87,13 @@ func NewMainController(c *ChrysalisServer) (*MainController, error) {
 	c.Mount("/app", mc)
 
 	return mc, nil
+}
+
+func (mc *MainController) Header(c *gin.Context) {
+	sessionData, _ := GetSessionData(c)
+	c.HTML(http.StatusOK, "header.html.tmpl", gin.H{
+		"sessionData": sessionData,
+	})
 }
 
 func (dc *MainController) GetUserServices(c *gin.Context) {

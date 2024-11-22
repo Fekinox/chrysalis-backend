@@ -1,0 +1,14 @@
+<ul>
+  <li><a href="/app">Home</a></li>
+  {{with .sessionData}}
+  <li><a href="/app/dashboard">Dashboard</a></li>
+  {{end}}
+</ul>
+<ul>
+  {{with .sessionData}}
+    <li>Logged in as {{.Username}} (<a href="/app/logout">Logout</a>)</li>
+  {{else}}
+    <li><a href="/app/login">Login</a></li>
+    <li><a href="/app/register">Register</a></li>
+  {{end}}
+</ul>
