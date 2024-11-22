@@ -48,12 +48,19 @@
 <ul>
   {{range $i, $t := .tasks}}
   <li>
+    {{$t.ClientUsername}} 
+    {{with $.session}}
+      {{if eq .Username $t.ClientUsername}}
+        (You)
+      {{end}}
+    {{end}}
     <a href="/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/{{$t.Slug}}">
       {{$t.Slug}}
     </a>
     {{with $.session}}
       {{if eq .Username $.params.username}}
         <select
+          style="display: inline-block"
           name="status"
           id="status"
           onChange="

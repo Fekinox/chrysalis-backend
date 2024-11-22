@@ -60,6 +60,7 @@ SELECT
     tasks.form_version_id,
     tasks.id,
     tasks.client_id,
+    clients.username AS client_username,
     status,
     tasks.slug,
     tasks.created_at
@@ -68,6 +69,7 @@ FROM
     INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
     INNER JOIN forms ON forms.id = form_versions.form_id
     INNER JOIN users ON forms.creator_id = users.id
+    INNER JOIN users AS clients ON tasks.client_id = clients.id
 WHERE
     forms.slug = sqlc.arg('form_slug') AND
     users.username = sqlc.arg('creator_username');
