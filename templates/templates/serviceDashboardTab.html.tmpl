@@ -45,67 +45,81 @@
   </ul>
 </div>
 <br>
-<ul>
+<table>
+  <tr>
+    <th>User</th>
+    <th>Name</th>
+    <th>Summary</th>
+  </tr>
   {{range $i, $t := .tasks}}
-  <li>
+  <tr>
+  <th>
     {{$t.ClientUsername}} 
     {{with $.session}}
       {{if eq .Username $t.ClientUsername}}
         (You)
       {{end}}
     {{end}}
-    <a href="/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/{{$t.Slug}}">
-      {{$t.Slug}}
+  </th>
+  <td>
+    <a style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" href="/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/{{$t.Slug}}">
+      {{$t.TaskName}}
     </a>
+  </td>
+  <td style="width: 100%">
+    {{$t.TaskSummary}}
+  </td>
     {{with $.session}}
       {{if eq .Username $.params.username}}
-        <select
-          style="display: inline-block"
-          name="status"
-          id="status"
-          onChange="
-            updateStatus({{$t.Slug}}, this.value)
-          "
-        >
-          <option
-            value="pending"
-            {{if eq $t.Status "pending"}}selected{{end}}
+        <td>
+          <select
+            style="display: inline-block"
+            name="status"
+            id="status"
+            onChange="
+              updateStatus({{$t.Slug}}, this.value)
+            "
           >
-            Pending
-          </option>
-          <option
-            value="approved"
-            {{if eq $t.Status "approved"}}selected{{end}}
-          >
-            Approved
-          </option>
-          <option
-            value="in progress"
-            {{if eq $t.Status "in progress"}}selected{{end}}
-          >
-            In Progress
-          </option>
-          <option
-            value="delayed"
-            {{if eq $t.Status "delayed"}}selected{{end}}
-          >
-            Delayed
-          </option>
-          <option
-            value="complete"
-            {{if eq $t.Status "complete"}}selected{{end}}
-          >
-            Complete
-          </option>
-          <option
-            value="cancelled"
-            {{if eq $t.Status "cancelled"}}selected{{end}}
-          >
-            Cancelled
-          </option>
-        </select>
+            <option
+              value="pending"
+              {{if eq $t.Status "pending"}}selected{{end}}
+            >
+              Pending
+            </option>
+            <option
+              value="approved"
+              {{if eq $t.Status "approved"}}selected{{end}}
+            >
+              Approved
+            </option>
+            <option
+              value="in progress"
+              {{if eq $t.Status "in progress"}}selected{{end}}
+            >
+              In Progress
+            </option>
+            <option
+              value="delayed"
+              {{if eq $t.Status "delayed"}}selected{{end}}
+            >
+              Delayed
+            </option>
+            <option
+              value="complete"
+              {{if eq $t.Status "complete"}}selected{{end}}
+            >
+              Complete
+            </option>
+            <option
+              value="cancelled"
+              {{if eq $t.Status "cancelled"}}selected{{end}}
+            >
+              Cancelled
+            </option>
+          </select>
+        </td>
       {{end}}
     {{end}}
-  </li>
+  </tr>
   {{end}}
-</li>
+</table>
