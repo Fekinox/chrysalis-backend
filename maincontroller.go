@@ -612,5 +612,5 @@ func (mc *MainController) HandleRegister(c *gin.Context) {
 		true,
 	)
 
-	c.Redirect(http.StatusSeeOther, fmt.Sprintf("/app/%s/services", username))
+	c.Redirect(http.StatusSeeOther, "/app/dashboard")
 }

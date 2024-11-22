@@ -103,7 +103,11 @@
                 {{end}}
                 {{if eq $a.FieldType "text"}}
                   <div>
-                    {{$curFilledField.Data.Content}}
+                    {{if $curFilledField.Filled}}
+                      {{$curFilledField.Data.Content}}
+                    {{else}}
+                      -- no response --
+                    {{end}}
                   </div>
                 {{end}}
               </div>
