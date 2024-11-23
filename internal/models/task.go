@@ -391,6 +391,7 @@ func MoveTask(
 		}
 
 		err = s.InsertTask(ctx, db.InsertTaskParams{
+			TaskID:   task.ID,
 			NewIndex: int32(p.NewIndex),
 			Status:   p.Status,
 		})
@@ -407,24 +408,32 @@ func UpdateTaskStatus(
 	p UpdateTaskParams,
 ) error {
 	return d.BeginFunc(ctx, func(s *db.Store) error {
-		n, err := s.UpdateTaskStatus(
-			ctx,
-			db.UpdateTaskStatusParams{
-				Status:   p.Status,
-				Creator:  p.CreatorUsername,
-				FormSlug: p.ServiceName,
-				TaskSlug: p.TaskName,
-			},
-		)
+		task, err := s.GetTaskHeader(ctx, db.GetTaskHeaderParams{
+			Username: p.CreatorUsername,
+			FormSlug: p.ServiceName,
+			TaskSlug: p.TaskName,
+		})
 		if err != nil {
 			return err
-		} else if len(n) == 0 {
-			return fmt.Errorf("%w: %v", ErrTaskNotFound, p.TaskName)
+		}
+
+		err = s.RemoveTask(ctx, task.ID)
+		if err != nil {
+			return err
 		}
 
 		err = s.ReorderTaskStatuses(ctx, db.ReorderTaskStatusesParams{
 			CreatorUsername: p.CreatorUsername,
 			FormSlug:        p.ServiceName,
+		})
+		if err != nil {
+			return err
+		}
+
+		err = s.InsertTask(ctx, db.InsertTaskParams{
+			TaskID:   task.ID,
+			NewIndex: 0,
+			Status:   p.Status,
 		})
 		if err != nil {
 			return err

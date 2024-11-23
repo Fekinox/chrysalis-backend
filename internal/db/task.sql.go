@@ -648,20 +648,22 @@ func (q *Queries) GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*
 const insertTask = `-- name: InsertTask :exec
 UPDATE task_states
     SET idx =
-        CASE WHEN idx = -1 THEN $1
-             WHEN idx >= $1 THEN idx+1
+        CASE WHEN task_id = $1 THEN $2
+             WHEN status = $3 AND idx >= $2 THEN idx+1
              ELSE idx
-        END
-    WHERE status = $2 AND (idx = -1 OR idx >= $1)
+        END,
+        status = $3
+    WHERE (status = $3 AND idx >= $2) OR task_id = $1
 `
 
 type InsertTaskParams struct {
+	TaskID   int64      `json:"task_id"`
 	NewIndex int32      `json:"new_index"`
 	Status   TaskStatus `json:"status"`
 }
 
 func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) error {
-	_, err := q.db.Exec(ctx, insertTask, arg.NewIndex, arg.Status)
+	_, err := q.db.Exec(ctx, insertTask, arg.TaskID, arg.NewIndex, arg.Status)
 	return err
 }
 

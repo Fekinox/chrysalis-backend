@@ -249,11 +249,12 @@ UPDATE task_states
 -- name: InsertTask :exec
 UPDATE task_states
     SET idx =
-        CASE WHEN idx = -1 THEN sqlc.arg('new_index')
-             WHEN idx >= sqlc.arg('new_index') THEN idx+1
+        CASE WHEN task_id = sqlc.arg('task_id') THEN sqlc.arg('new_index')
+             WHEN status = sqlc.arg('status') AND idx >= sqlc.arg('new_index') THEN idx+1
              ELSE idx
-        END
-    WHERE status = sqlc.arg('status') AND (idx = -1 OR idx >= sqlc.arg('new_index'));
+        END,
+        status = sqlc.arg('status')
+    WHERE (status = sqlc.arg('status') AND idx >= sqlc.arg('new_index')) OR task_id = sqlc.arg('task_id');
 
 -- name: ReorderTaskStatuses :exec
 UPDATE task_states
