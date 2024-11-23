@@ -1,0 +1,14 @@
+{{range $i, $t := .tasks}}
+  <div style="
+    margin: 0.4em 0em;
+    padding: 0.4em;
+    border: 2px solid var(--color-link);
+    border-radius: var(--border-radius);">
+    <h4>
+      <a href="/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/{{$t.Slug}}">
+        {{$t.TaskName}}
+      </a>
+    </h4>
+    <p>{{$t.TaskSummary}}</p>
+  </div>
+{{end}}

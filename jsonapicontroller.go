@@ -658,26 +658,28 @@ func (jc *JSONAPIController) SwapTasksStatusAndIndex(c *gin.Context) {
 
 // Update the status of a task as the owner of a service
 func (jc *JSONAPIController) MoveTask(c *gin.Context) {
-	src, err := strconv.Atoi(c.Query("src"))
+	srcIndex, err := strconv.Atoi(c.Query("srcIndex"))
 	if err != nil {
-		AbortError(c, http.StatusBadRequest, errors.New("task1 must be an integer"))
+		AbortError(c, http.StatusBadRequest, errors.New("srcIndex must be an integer"))
 		return
 	}
-	dest, err := strconv.Atoi(c.Query("dest"))
+	dstIndex, err := strconv.Atoi(c.Query("dstIndex"))
 	if err != nil {
-		AbortError(c, http.StatusBadRequest, errors.New("task2 must be an integer"))
+		AbortError(c, http.StatusBadRequest, errors.New("dstIndex must be an integer"))
 		return
 	}
 
 	err = models.MoveTask(c.Request.Context(), jc.con.store, models.MoveTaskParams{
 		CreatorUsername: c.Param("username"),
 		ServiceName:     c.Param("servicename"),
-		Status:          db.TaskStatus(c.Query("status")),
-		OldIndex:        src,
-		NewIndex:        dest,
+		OldStatus:       db.TaskStatus(models.Dehyphenize(c.Query("srcStatus"))),
+		NewStatus:       db.TaskStatus(models.Dehyphenize(c.Query("dstStatus"))),
+		OldIndex:        srcIndex,
+		NewIndex:        dstIndex,
 	})
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
+		return
 	}
 
 	c.Status(http.StatusNoContent)

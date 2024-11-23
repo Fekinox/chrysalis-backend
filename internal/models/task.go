@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
@@ -21,6 +22,19 @@ var (
 )
 
 const MAX_TASK_RETRY_ATTEMPTS int = 10
+
+var (
+	dehyphenize = strings.NewReplacer("-", " ", "_", " ")
+	hyphenize   = strings.NewReplacer(" ", "-")
+)
+
+func Dehyphenize(s string) string {
+	return dehyphenize.Replace(s)
+}
+
+func Hyphenize(s string) string {
+	return hyphenize.Replace(s)
+}
 
 func generateTaskSlug() (string, error) {
 	slug, err := genbytes.GenRandomBytes(4)
@@ -90,7 +104,8 @@ type SwapTasksByStatusAndIdParams struct {
 type MoveTaskParams struct {
 	CreatorUsername string
 	ServiceName     string
-	Status          db.TaskStatus
+	OldStatus       db.TaskStatus
+	NewStatus       db.TaskStatus
 	OldIndex        int
 	NewIndex        int
 }
@@ -370,7 +385,7 @@ func MoveTask(
 		task, err := s.GetTaskByStatusAndIndex(ctx, db.GetTaskByStatusAndIndexParams{
 			CreatorUsername: p.CreatorUsername,
 			FormSlug:        p.ServiceName,
-			Status:          p.Status,
+			Status:          p.OldStatus,
 			Idx:             int32(p.OldIndex),
 		})
 		if err != nil {
@@ -393,7 +408,7 @@ func MoveTask(
 		err = s.InsertTask(ctx, db.InsertTaskParams{
 			TaskID:   task.ID,
 			NewIndex: int32(p.NewIndex),
-			Status:   p.Status,
+			Status:   p.NewStatus,
 		})
 		if err != nil {
 			return err

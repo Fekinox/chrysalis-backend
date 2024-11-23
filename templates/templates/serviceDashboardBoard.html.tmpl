@@ -1,16 +1,26 @@
-<div style="display: flex;">
+<div style="display: flex; width:100%">
   {{range $i, $s := statuses}}
-  <div
-    data-dashboard-column
-    data-status="{{$s}}"
-    style="display: flex; flex-direction: column;"
-    hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/columns/{{hyphenize $s}}"
-    hx-trigger="load, refresh"
-    hx-target="[data-dashboard-content]"
-    hx-swap="outerHTML"
-  >
+  <div style="display: flex; flex-direction: column; width: 100%">
     <div>{{$s}}</div>
-    <div data-dashboard-content></div>
+    <div
+      data-dashboard-column
+      data-status="{{hyphenize $s}}"
+      style="
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;"
+      {{with $.session}}
+        {{if eq .Username $.params.username}}
+          hx-on:htmx-after-on-load="attachColumnSortable('{{$.params.username}}', '{{$.params.servicename}}', '{{hyphenize $s}}')"
+        {{end}}
+      {{end}}
+      hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/columns/{{hyphenize $s}}"
+      hx-trigger="load, refresh"
+      hx-target="this"
+      hx-swap="innerHTML"
+    >
+    </div>
   </div>
   {{end}}
 </div>

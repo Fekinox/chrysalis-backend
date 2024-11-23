@@ -17,7 +17,7 @@
   {{with .session}}
     {{if eq .Username $.params.username}}
       document.addEventListener('DOMContentLoaded', () => {
-        attachSortable()
+        attachSortable({{$.params.username}}, {{$.params.servicename}});
       })
     {{end}}
   {{end}}
@@ -44,6 +44,15 @@
     hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/pending"
     hx-trigger="load"
     hx-target="#tabarea"
+    hx-swap="innerHTML"
+  >
+  </section>
+  <section
+    style="display: flex"
+    id="tabcolumns"
+    hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/board"
+    hx-trigger="load"
+    hx-target="#tabcolumns"
     hx-swap="innerHTML"
   >
   </section>

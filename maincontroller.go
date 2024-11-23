@@ -34,6 +34,14 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 		HTMXRedirect("/app/:username/services/:servicename"),
 		mc.ServiceDashboardTab,
 	)
+
+	app.GET("/:username/services/:servicename/dashboard/board",
+		HTMXRedirect("/app/:username/services/:servicename/dashboard"),
+		mc.ServiceDashboardBoardView)
+	app.GET("/:username/services/:servicename/dashboard/columns/:status",
+		HTMXRedirect("/app/:username/services/:servicename/dashboard"),
+		mc.ServiceDashboardBoardColumn)
+
 	app.PUT(
 		"/:username/services/:servicename/tasks/:taskname",
 		HasSessionKey(mc.con.sessionManager),
@@ -230,6 +238,86 @@ func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 	sessionData, _ := GetSessionData(c)
 
 	c.HTML(http.StatusOK, "serviceDashboardTab.html.tmpl", gin.H{
+		"session": sessionData,
+		"params": gin.H{
+			"status":      c.Param("status"),
+			"username":    c.Param("username"),
+			"servicename": c.Param("servicename"),
+		},
+		"tasks":      filteredHeaders,
+		"taskCounts": taskCounts,
+	})
+}
+
+func (mc *MainController) ServiceDashboardBoardView(c *gin.Context) {
+	sessionData, _ := GetSessionData(c)
+
+	var form *models.ServiceForm
+
+	err := mc.con.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
+		var err error
+		form, err = models.GetServiceForm(c.Request.Context(), s, models.ServiceFormParams{
+			Username: c.Param("username"),
+			Service:  c.Param("servicename"),
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.HTML(http.StatusOK, "serviceDashboardBoard.html.tmpl", gin.H{
+		"session": sessionData,
+		"service": form,
+		"params": gin.H{
+			"username":    c.Param("username"),
+			"servicename": c.Param("servicename"),
+		},
+	})
+}
+
+func (mc *MainController) ServiceDashboardBoardColumn(c *gin.Context) {
+	var taskHeaders []*db.GetServiceTasksBySlugRow
+	var filteredHeaders []*db.GetServiceTasksBySlugRow
+	var taskCounts map[string]int = make(map[string]int)
+
+	err := mc.con.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
+		var err error
+		taskHeaders, err = s.GetServiceTasksBySlug(
+			c.Request.Context(),
+			db.GetServiceTasksBySlugParams{
+				CreatorUsername: c.Param("username"),
+				FormSlug:        c.Param("servicename"),
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		// FIXME: create a specialized query to handle this instead
+		filteredHeaders = make([]*db.GetServiceTasksBySlugRow, 0)
+		for _, t := range taskHeaders {
+			taskCounts[string(t.Status)]++
+			if t.Status == db.TaskStatus(models.Dehyphenize(c.Param("status"))) {
+				filteredHeaders = append(filteredHeaders, t)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	sessionData, _ := GetSessionData(c)
+
+	c.HTML(http.StatusOK, "serviceDashboardColumn.html.tmpl", gin.H{
 		"session": sessionData,
 		"params": gin.H{
 			"status":      c.Param("status"),

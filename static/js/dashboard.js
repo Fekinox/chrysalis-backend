@@ -6,11 +6,17 @@ function NewSortable(key, s) {
     sortables.delete(key)
   }
   sortables.set(key, s)
+  console.log(key)
 }
 
 function refreshCurrentTab() {
   htmx.trigger(document.querySelector("#tabarea [aria-selected=true]"), "refresh")
 }
+
+function refreshColumn(status) {
+  htmx.trigger(document.querySelector(`#tabcolumns [data-dashboard-column][data-status=${status}]`), 'refresh')
+}
+
 async function updateStatus({ username, service, task, status }) {
   await fetch(`/app/${username}/services/${service}/tasks/${task}?status=${status}`, {
     method: "PUT",
@@ -22,14 +28,14 @@ function attachSortable(username, service) {
   document.getElementById('tabarea').addEventListener('htmx:afterOnLoad', () => {
     sts = document.querySelector('#tabarea [aria-selected=true]').dataset.tab
     NewSortable("dashboard", Sortable.create(document.getElementById('tasktable'), {
-      disable: true,
       animation: 150,
       onEnd: async (ev) => {
         console.log(ev);
         params = new URLSearchParams({
-          status: sts,
-          src: ev.oldIndex,
-          dest: ev.newIndex,
+          srcStatus: sts,
+          dstStatus: sts,
+          srcIndex: ev.oldIndex,
+          dstIndex: ev.newIndex,
         })
         await fetch(`/api/users/${username}/services/${service}/move?${params}`, {
           method: "POST",
@@ -38,4 +44,33 @@ function attachSortable(username, service) {
       },
     }));
   })
+}
+
+function attachColumnSortable(username, service, status) {
+  column = document.querySelector(`#tabcolumns [data-dashboard-column][data-status=${status}]`)
+  NewSortable(`columns-${column.dataset.status}`, Sortable.create(column, {
+    animation: 150,
+    group: 'columns',
+    onEnd: async (ev) => {
+      console.log({
+        to: ev.to.dataset.status,
+        from: ev.from.dataset.status,
+        oldIndex: ev.oldIndex,
+        newIndex: ev.newIndex,
+      })
+
+      params = new URLSearchParams({
+        srcStatus: ev.from.dataset.status,
+        srcIndex: ev.oldIndex,
+        dstStatus: ev.to.dataset.status,
+        dstIndex: ev.newIndex
+      })
+      await fetch(`/api/users/${username}/services/${service}/move?${params}`, {
+        method: "POST",
+      });
+
+      refreshColumn(ev.to.dataset.status)
+      refreshColumn(ev.from.dataset.status)
+    }
+  }))
 }
