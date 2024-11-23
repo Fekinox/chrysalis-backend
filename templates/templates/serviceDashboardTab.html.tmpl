@@ -56,8 +56,12 @@
               name="status"
               id="status"
               onChange="
-                updateStatus({{$t.Slug}}, this.value)
-              "
+                updateStatus({
+                  username: {{$.params.username}},
+                  service: {{$.params.servicename}},
+                  task: {{$t.Slug}}, 
+                  status: this.value,
+                })"
             >
               <option
                 value="pending"
