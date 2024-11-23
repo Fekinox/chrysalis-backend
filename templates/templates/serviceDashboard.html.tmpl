@@ -1,27 +1,18 @@
 {{define "title"}}{{.service.Name}} Dashboard{{end}}
 {{define "scripts"}}
   <style>
-    #tabarea button {
+    button[role=tab] {
       background-color: var(--color-bg);
       color: var(--color-link);
       text-transform: capitalize;
     }
 
-    #tabarea button[aria-selected="true"] {
+    button[role=tab][aria-selected="true"] {
       background-color: var(--color-link);
       color: var(--color-bg);
     }
   </style>
   <script defer src="/static/js/dashboard.js"></script>
-  <script>
-  {{with .session}}
-    {{if eq .Username $.params.username}}
-      document.addEventListener('DOMContentLoaded', () => {
-        attachSortable({{$.params.username}}, {{$.params.servicename}});
-      })
-    {{end}}
-  {{end}}
-  </script>
 {{end}}
 {{define "header"}}
   <h1>{{.service.Name}} Dashboard</h1>
@@ -38,23 +29,42 @@
   </div>
   <h2>Tasks</h2>
   <hr>
+  <div
+    id="dashboardtabs"
+    style="align-content: center; display: flex;"
+    role="tablist"
+    {{with $.session}}
+      {{if eq .Username $.params.username}}
+        hx-on::after-on-load="loadSortables('{{$.params.username}}', '{{$.params.servicename}}', event.target)"
+      {{else}}
+        hx-on::after-on-load="setHighlight(event.target)"
+      {{end}}
+    {{else}}
+      hx-on::after-on-load="setHighlight(event.target)"
+    {{end}}
+    hx-target="#dashboardcontent">
+    <button
+      hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/tabs/pending"
+      hx-trigger="click, refresh"
+      role="tab"
+      aria-controls="dashboardcontent"
+      aria-selected="true"
+      data-tab="tabs"
+    >Tabs</button>
+    <button
+      hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/board"
+      hx-trigger="click, refresh"
+      role="tab"
+      aria-controls="dashboardcontent"
+      aria-selected="false"
+      data-tab="board"
+    >Kanban</button>
+  </div>
   <section
-    style="flex-direction: column"
-    id="tabarea"
-    hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/pending"
+    id="dashboardcontent"
+    hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/tabs/pending"
     hx-trigger="load"
-    hx-target="#tabarea"
-    hx-swap="innerHTML"
-  >
-  </section>
-  <section
-    style="display: flex"
-    id="tabcolumns"
-    hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/board"
-    hx-trigger="load"
-    hx-target="#tabcolumns"
-    hx-swap="innerHTML"
-  >
+    style="display: flex; flex-direction: column">
   </section>
 {{end}}
 {{template "skeleton" .}}

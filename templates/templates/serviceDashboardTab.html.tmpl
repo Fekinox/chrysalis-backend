@@ -4,6 +4,7 @@
     <button
       hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/tabs/{{hyphenize $s}}"
       hx-trigger="click, refresh{{if eq $.params.status (hyphenize $s)}}{{end}}"
+      hx-target="#dashboardcontent"
       role="tab"
       aria-controls="tasktable"
       {{if eq $.params.status (hyphenize $s)}}
@@ -29,7 +30,8 @@
       {{end}}
     </tr>
   </thead>
-  <tbody id="tasktable">
+  <tbody id="tasktable"
+    >
     {{range $i, $t := .tasks}}
     <tr>
     <th>

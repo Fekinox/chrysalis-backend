@@ -271,7 +271,7 @@ func (mc *MainController) ServiceDashboardBoardView(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusOK, "serviceDashboardBoard.html.tmpl", gin.H{
+	c.HTML(http.StatusOK, "serviceDashboardBoardView.html.tmpl", gin.H{
 		"session": sessionData,
 		"service": form,
 		"params": gin.H{

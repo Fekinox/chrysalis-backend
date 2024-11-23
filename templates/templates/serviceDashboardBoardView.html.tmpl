@@ -12,7 +12,7 @@
         height: 100%;"
       {{with $.session}}
         {{if eq .Username $.params.username}}
-          hx-on:htmx-after-on-load="attachColumnSortable('{{$.params.username}}', '{{$.params.servicename}}', '{{hyphenize $s}}')"
+          hx-on::after-on-load="attachColumnSortable('{{$.params.username}}', '{{$.params.servicename}}', '{{hyphenize $s}}')"
         {{end}}
       {{end}}
       hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/columns/{{hyphenize $s}}"
