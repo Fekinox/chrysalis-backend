@@ -1,5 +1,17 @@
 {{define "title"}}{{.service.Name}} Dashboard{{end}}
 {{define "scripts"}}
+  <style>
+    #tabarea button {
+      background-color: var(--color-bg);
+      color: var(--color-link);
+      text-transform: capitalize;
+    }
+
+    #tabarea button[aria-selected="true"] {
+      background-color: var(--color-link);
+      color: var(--color-bg);
+    }
+  </style>
   <script>
   {{with .session}}
     {{if eq .Username $.params.username}}
@@ -7,7 +19,7 @@
         await fetch(`/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/${task}?status=${status}`, {
           method: "PUT",
         });
-        htmx.trigger(document.getElementById("tabarea"), "refresh")
+        htmx.trigger(document.querySelector("#tabarea [aria-selected=true]"), "refresh")
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -25,7 +37,7 @@
               await fetch(`/api/users/{{$.params.username}}/services/{{$.params.servicename}}/move?${params}`, {
                 method: "POST",
               });
-              htmx.trigger(document.getElementById("tabarea"), "refresh")
+              htmx.trigger(document.querySelector("tabarea [aria-selected=true]"), "refresh")
             },
           });
         })
@@ -53,7 +65,7 @@
     style="flex-direction: column"
     id="tabarea"
     hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/pending"
-    hx-trigger="load delay:100ms, refresh"
+    hx-trigger="load"
     hx-target="#tabarea"
     hx-swap="innerHTML"
   >

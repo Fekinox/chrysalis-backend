@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 	"text/template"
 	"time"
 
@@ -68,6 +69,19 @@ func CreateController(cfg config.Config) (*ChrysalisServer, error) {
 		},
 		"contains": func(s string, strings []string) bool {
 			return slices.Contains(strings, s)
+		},
+		"statuses": func() []string {
+			return []string{
+				"pending",
+				"approved",
+				"in progress",
+				"delayed",
+				"complete",
+				"cancelled",
+			}
+		},
+		"hyphenize": func(s string) string {
+			return strings.ReplaceAll(s, " ", "-")
 		},
 	})
 	render.AddIncludes("templates/includes")

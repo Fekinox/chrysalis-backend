@@ -1,60 +1,29 @@
 <input type="hidden" id="pageIdx" name="pageIdx" value="{{.params.status}}">
-<div style="align-content: center">
-  <ul>
-    <li style="display: inline">
-      {{if eq .params.status "pending"}}
-        <span>Pending ({{index .taskCounts "pending"}})</span>
+<div style="align-content: center; display: flex;" role="tablist">
+  {{range $i, $s := statuses}}
+    <button
+      hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/tabs/{{hyphenize $s}}"
+      hx-trigger="click, refresh{{if eq $.params.status (hyphenize $s)}}{{end}}"
+      role="tab"
+      aria-controls="tasktable"
+      {{if eq $.params.status (hyphenize $s)}}
+        aria-selected="true"
       {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/pending">Pending ({{index .taskCounts "pending"}})</a>
+        aria-selected="false"
       {{end}}
-    </li>
-    <li style="display: inline">
-      {{if eq .params.status "approved"}}
-        <span>Approved ({{index .taskCounts "approved"}})</span>
-      {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/approved">Approved ({{index .taskCounts "approved"}})</a>
-      {{end}}
-    </li>
-    <li style="display: inline">
-      {{if eq .params.status "in progress"}}
-        <span>In Progress ({{index .taskCounts "in progress"}})</span>
-      {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/in progress">In Progress ({{index .taskCounts "in progress"}})</a>
-      {{end}}
-    </li>
-    <li style="display: inline">
-      {{if eq .params.status "delayed"}}
-        <span>Delayed ({{index .taskCounts "delayed"}})</span>
-      {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/delayed">Delayed ({{index .taskCounts "delayed"}})</a>
-      {{end}}
-    </li>
-    <li style="display: inline">
-      {{if eq .params.status "complete"}}
-        <span>Complete ({{index .taskCounts "complete"}})</span>
-      {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/complete">Complete ({{index .taskCounts "complete"}})</a>
-      {{end}}
-    </li>
-    <li style="display: inline">
-      {{if eq .params.status "cancelled"}}
-        <span>Cancelled ({{index .taskCounts "cancelled"}})</span>
-      {{else}}
-        <a hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/tabs/cancelled">Cancelled ({{index .taskCounts "cancelled"}})</a>
-      {{end}}
-    </li>
-  </ul>
+    >{{$s}} ({{index $.taskCounts $s}})</button>
+  {{end}}
 </div>
 <br>
-<table>
+<table style="table-layout: fixed">
   <thead>
     <tr>
-      <th>User</th>
-      <th>Name</th>
-      <th>Summary</th>
+      <th style="width: 10%">User</th>
+      <th style="width: 20%">Name</th>
+      <th style="width: 100%">Summary</th>
       {{with $.session}}
         {{if eq .Username $.params.username}}
-          <th></th>
+          <th style="width: 10%"></th>
         {{end}}
       {{end}}
     </tr>
