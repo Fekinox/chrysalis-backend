@@ -1,0 +1,16 @@
+<div style="display: flex;">
+  {{range $i, $s := statuses}}
+  <div
+    data-dashboard-column
+    data-status="{{$s}}"
+    style="display: flex; flex-direction: column;"
+    hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/columns/{{hyphenize $s}}"
+    hx-trigger="load, refresh"
+    hx-target="[data-dashboard-content]"
+    hx-swap="outerHTML"
+  >
+    <div>{{$s}}</div>
+    <div data-dashboard-content></div>
+  </div>
+  {{end}}
+</div>
