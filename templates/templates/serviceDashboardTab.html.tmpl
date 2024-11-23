@@ -1,4 +1,4 @@
-<input type="hidden" id="pageIdx" name="pageIdx" value="{{.params.status}}">
+<input type="hidden" id="pageIdx" name="pageIdx" value="{{hyphenize .params.status}}">
 <div style="align-content: center; display: flex;" role="tablist">
   {{range $i, $s := statuses}}
     <button
@@ -11,6 +11,7 @@
       {{else}}
         aria-selected="false"
       {{end}}
+      data-tab="{{$s}}"
     >{{$s}} ({{index $.taskCounts $s}})</button>
   {{end}}
 </div>
