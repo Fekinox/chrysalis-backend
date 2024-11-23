@@ -457,3 +457,24 @@ func UpdateTaskStatus(
 		return nil
 	})
 }
+
+func GetTaskCounts(
+	ctx context.Context,
+	d *db.Store,
+	username, service string,
+) (taskCounts map[string]int64, err error) {
+	tcs, err := d.GetTaskCounts(ctx, db.GetTaskCountsParams{
+		Username: username,
+		Service:  service,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	taskCounts = make(map[string]int64)
+	for _, tc := range tcs {
+		taskCounts[string(tc.Status)] = tc.Count
+	}
+
+	return taskCounts, nil
+}

@@ -1,7 +1,7 @@
 <div style="display: flex; width:100%">
   {{range $i, $s := statuses}}
-  <div style="display: flex; flex-direction: column; width: 100%">
-    <div>{{$s}}</div>
+  <div style="display: flex; flex-direction: column; width: 100%; align-items: center;">
+    <div style="text-transform: capitalize">{{$s}} ({{index $.taskCounts $s}})</div>
     <div
       data-dashboard-column
       data-status="{{hyphenize $s}}"

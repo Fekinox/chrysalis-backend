@@ -508,6 +508,83 @@ func (q *Queries) GetServiceTasksBySlug(ctx context.Context, arg GetServiceTasks
 	return items, nil
 }
 
+const getServiceTasksWithStatus = `-- name: GetServiceTasksWithStatus :many
+SELECT
+    tasks.form_version_id,
+    tasks.id,
+    tasks.client_id,
+    clients.username AS client_username,
+    tasks.slug,
+    tasks.created_at,
+    tasks.task_name,
+    tasks.task_summary,
+
+    ts.status,
+    ts.idx
+FROM
+    tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users ON forms.creator_id = users.id
+    INNER JOIN users AS clients ON tasks.client_id = clients.id
+    INNER JOIN task_states AS ts ON ts.task_id = tasks.id
+WHERE
+    forms.slug = $1 AND
+    users.username = $2 AND
+    ts.status = $3
+ORDER BY ts.idx ASC
+`
+
+type GetServiceTasksWithStatusParams struct {
+	Service  string     `json:"service"`
+	Username string     `json:"username"`
+	Status   TaskStatus `json:"status"`
+}
+
+type GetServiceTasksWithStatusRow struct {
+	FormVersionID  int64              `json:"form_version_id"`
+	ID             int64              `json:"id"`
+	ClientID       uuid.UUID          `json:"client_id"`
+	ClientUsername string             `json:"client_username"`
+	Slug           string             `json:"slug"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	TaskName       string             `json:"task_name"`
+	TaskSummary    string             `json:"task_summary"`
+	Status         TaskStatus         `json:"status"`
+	Idx            int32              `json:"idx"`
+}
+
+func (q *Queries) GetServiceTasksWithStatus(ctx context.Context, arg GetServiceTasksWithStatusParams) ([]*GetServiceTasksWithStatusRow, error) {
+	rows, err := q.db.Query(ctx, getServiceTasksWithStatus, arg.Service, arg.Username, arg.Status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetServiceTasksWithStatusRow
+	for rows.Next() {
+		var i GetServiceTasksWithStatusRow
+		if err := rows.Scan(
+			&i.FormVersionID,
+			&i.ID,
+			&i.ClientID,
+			&i.ClientUsername,
+			&i.Slug,
+			&i.CreatedAt,
+			&i.TaskName,
+			&i.TaskSummary,
+			&i.Status,
+			&i.Idx,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTaskByStatusAndIndex = `-- name: GetTaskByStatusAndIndex :one
 SELECT
     tasks.form_version_id,
@@ -576,6 +653,52 @@ func (q *Queries) GetTaskByStatusAndIndex(ctx context.Context, arg GetTaskByStat
 		&i.Idx,
 	)
 	return &i, err
+}
+
+const getTaskCounts = `-- name: GetTaskCounts :many
+SELECT
+    ts.status AS status,
+    COUNT(ts.status) AS count
+FROM
+    task_states as ts
+    INNER JOIN tasks AS tks ON ts.task_id = tks.id
+    INNER JOIN form_versions AS fvs ON fvs.id = tks.form_version_id
+    INNER JOIN forms AS fms ON fms.id = fvs.form_id
+    INNER JOIN users AS creators ON creators.id = fms.creator_id
+WHERE
+    creators.username = $1 AND
+    fms.slug = $2
+GROUP BY ts.status
+`
+
+type GetTaskCountsParams struct {
+	Username string `json:"username"`
+	Service  string `json:"service"`
+}
+
+type GetTaskCountsRow struct {
+	Status TaskStatus `json:"status"`
+	Count  int64      `json:"count"`
+}
+
+func (q *Queries) GetTaskCounts(ctx context.Context, arg GetTaskCountsParams) ([]*GetTaskCountsRow, error) {
+	rows, err := q.db.Query(ctx, getTaskCounts, arg.Username, arg.Service)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetTaskCountsRow
+	for rows.Next() {
+		var i GetTaskCountsRow
+		if err := rows.Scan(&i.Status, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getTaskFields = `-- name: GetTaskFields :one

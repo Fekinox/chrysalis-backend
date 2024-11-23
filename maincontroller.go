@@ -202,31 +202,29 @@ func (mc *MainController) ServiceDashboard(c *gin.Context) {
 }
 
 func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
-	var taskHeaders []*db.GetServiceTasksBySlugRow
-	var filteredHeaders []*db.GetServiceTasksBySlugRow
-	var taskCounts map[string]int = make(map[string]int)
+	var taskHeaders []*db.GetServiceTasksWithStatusRow
+	var taskCounts map[string]int64 = make(map[string]int64)
 
 	err := mc.con.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
 		var err error
-		taskHeaders, err = s.GetServiceTasksBySlug(
+		taskHeaders, err = s.GetServiceTasksWithStatus(
 			c.Request.Context(),
-			db.GetServiceTasksBySlugParams{
-				CreatorUsername: c.Param("username"),
-				FormSlug:        c.Param("servicename"),
+			db.GetServiceTasksWithStatusParams{
+				Username: c.Param("username"),
+				Service:  c.Param("servicename"),
+				Status:   db.TaskStatus(models.Dehyphenize(c.Param("status"))),
 			},
 		)
 		if err != nil {
 			return err
 		}
 
-		// FIXME: create a specialized query to handle this instead
-		filteredHeaders = make([]*db.GetServiceTasksBySlugRow, 0)
-		for _, t := range taskHeaders {
-			taskCounts[string(t.Status)]++
-			if t.Status == db.TaskStatus(c.Param("status")) {
-				filteredHeaders = append(filteredHeaders, t)
-			}
+		taskCounts, err = models.GetTaskCounts(
+			c.Request.Context(), s, c.Param("username"), c.Param("servicename"))
+		if err != nil {
+			return err
 		}
+		fmt.Println(taskCounts)
 
 		return nil
 	})
@@ -244,12 +242,13 @@ func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 			"username":    c.Param("username"),
 			"servicename": c.Param("servicename"),
 		},
-		"tasks":      filteredHeaders,
+		"tasks":      taskHeaders,
 		"taskCounts": taskCounts,
 	})
 }
 
 func (mc *MainController) ServiceDashboardBoardView(c *gin.Context) {
+	var taskCounts map[string]int64
 	sessionData, _ := GetSessionData(c)
 
 	var form *models.ServiceForm
@@ -264,6 +263,14 @@ func (mc *MainController) ServiceDashboardBoardView(c *gin.Context) {
 			return err
 		}
 
+		taskCounts, err = models.GetTaskCounts(c.Request.Context(), s,
+			c.Param("username"),
+			c.Param("servicename"),
+		)
+		if err != nil {
+			return nil
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -272,8 +279,9 @@ func (mc *MainController) ServiceDashboardBoardView(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "serviceDashboardBoardView.html.tmpl", gin.H{
-		"session": sessionData,
-		"service": form,
+		"session":    sessionData,
+		"service":    form,
+		"taskCounts": taskCounts,
 		"params": gin.H{
 			"username":    c.Param("username"),
 			"servicename": c.Param("servicename"),
@@ -282,30 +290,31 @@ func (mc *MainController) ServiceDashboardBoardView(c *gin.Context) {
 }
 
 func (mc *MainController) ServiceDashboardBoardColumn(c *gin.Context) {
-	var taskHeaders []*db.GetServiceTasksBySlugRow
-	var filteredHeaders []*db.GetServiceTasksBySlugRow
-	var taskCounts map[string]int = make(map[string]int)
+	var taskHeaders []*db.GetServiceTasksWithStatusRow
+	var taskCounts map[string]int64 = make(map[string]int64)
 
 	err := mc.con.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
 		var err error
-		taskHeaders, err = s.GetServiceTasksBySlug(
+		taskHeaders, err = s.GetServiceTasksWithStatus(
 			c.Request.Context(),
-			db.GetServiceTasksBySlugParams{
-				CreatorUsername: c.Param("username"),
-				FormSlug:        c.Param("servicename"),
+			db.GetServiceTasksWithStatusParams{
+				Username: c.Param("username"),
+				Service:  c.Param("servicename"),
+				Status:   db.TaskStatus(models.Dehyphenize(c.Param("status"))),
 			},
 		)
 		if err != nil {
 			return err
 		}
 
-		// FIXME: create a specialized query to handle this instead
-		filteredHeaders = make([]*db.GetServiceTasksBySlugRow, 0)
-		for _, t := range taskHeaders {
-			taskCounts[string(t.Status)]++
-			if t.Status == db.TaskStatus(models.Dehyphenize(c.Param("status"))) {
-				filteredHeaders = append(filteredHeaders, t)
-			}
+		taskCounts, err = models.GetTaskCounts(
+			c.Request.Context(),
+			s,
+			c.Param("username"),
+			c.Param("servicename"),
+		)
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -324,7 +333,7 @@ func (mc *MainController) ServiceDashboardBoardColumn(c *gin.Context) {
 			"username":    c.Param("username"),
 			"servicename": c.Param("servicename"),
 		},
-		"tasks":      filteredHeaders,
+		"tasks":      taskHeaders,
 		"taskCounts": taskCounts,
 	})
 }

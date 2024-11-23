@@ -95,6 +95,32 @@ WHERE
     users.username = sqlc.arg('creator_username')
 ORDER BY ts.status ASC, ts.idx ASC;
 
+-- name: GetServiceTasksWithStatus :many
+SELECT
+    tasks.form_version_id,
+    tasks.id,
+    tasks.client_id,
+    clients.username AS client_username,
+    tasks.slug,
+    tasks.created_at,
+    tasks.task_name,
+    tasks.task_summary,
+
+    ts.status,
+    ts.idx
+FROM
+    tasks
+    INNER JOIN form_versions ON tasks.form_version_id = form_versions.id
+    INNER JOIN forms ON forms.id = form_versions.form_id
+    INNER JOIN users ON forms.creator_id = users.id
+    INNER JOIN users AS clients ON tasks.client_id = clients.id
+    INNER JOIN task_states AS ts ON ts.task_id = tasks.id
+WHERE
+    forms.slug = sqlc.arg('service') AND
+    users.username = sqlc.arg('username') AND
+    ts.status = sqlc.arg('status')
+ORDER BY ts.idx ASC;
+
 -- name: GetTaskHeader :one
 SELECT
     tasks.form_version_id,
@@ -303,3 +329,18 @@ WHERE
     users.username = sqlc.arg('creator_username') AND
     ts.status = sqlc.arg('status') AND
     ts.idx = sqlc.arg('idx');
+
+-- name: GetTaskCounts :many
+SELECT
+    ts.status AS status,
+    COUNT(ts.status) AS count
+FROM
+    task_states as ts
+    INNER JOIN tasks AS tks ON ts.task_id = tks.id
+    INNER JOIN form_versions AS fvs ON fvs.id = tks.form_version_id
+    INNER JOIN forms AS fms ON fms.id = fvs.form_id
+    INNER JOIN users AS creators ON creators.id = fms.creator_id
+WHERE
+    creators.username = sqlc.arg('username') AND
+    fms.slug = sqlc.arg('service')
+GROUP BY ts.status;
