@@ -224,7 +224,6 @@ func (mc *MainController) ServiceDashboardTab(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		fmt.Println(taskCounts)
 
 		return nil
 	})

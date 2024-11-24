@@ -4,7 +4,6 @@
 package htmlrenderer
 
 import (
-	"fmt"
 	"html/template"
 	"io/fs"
 	"path/filepath"
@@ -103,10 +102,6 @@ func (r *Render) AddTemplates(dir string) {
 				return err
 			}
 			r.templates[path] = tmpl
-			fmt.Println(path)
-			for _, t := range tmpl.Templates() {
-				fmt.Println("-", t.Name())
-			}
 			return nil
 		},
 	)

@@ -117,8 +117,6 @@ func ComparePasswordAndHash(password string, encodedHash string) (bool, error) {
 		return false, err
 	}
 
-	fmt.Printf("%x\n", hash)
-
 	testHash := argon2.IDKey(
 		[]byte(password),
 		salt,
@@ -127,7 +125,6 @@ func ComparePasswordAndHash(password string, encodedHash string) (bool, error) {
 		p.Parallelism,
 		p.KeyLength,
 	)
-	fmt.Printf("%x\n", testHash)
 
 	return subtle.ConstantTimeCompare(hash, testHash) == 1, nil
 }
