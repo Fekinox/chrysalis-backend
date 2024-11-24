@@ -1,6 +1,6 @@
 BEGIN;
 
 ALTER TABLE tasks
-    ALTER COLUMN status SET DEFAULT 'pending';
+  ALTER COLUMN status SET DEFAULT 'pending';
 
 COMMIT;

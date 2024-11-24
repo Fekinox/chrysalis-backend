@@ -1,7 +1,7 @@
 CREATE TYPE field_type AS ENUM (
-    'checkbox',
-    'radio',
-    'text'
+  'checkbox',
+  'radio',
+  'text'
 );
 
 BEGIN;
@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS checkbox_fields (
   idx bigint,
   options text[],
   CONSTRAINT pk_checkbox_field PRIMARY KEY (form_version_id, idx),
-  CONSTRAINT fk_ff_id FOREIGN KEY (form_version_id, idx) REFERENCES form_fields ON DELETE CASCADE
+  CONSTRAINT fk_ff_id FOREIGN KEY (form_version_id, idx) REFERENCES form_fields
+    ON DELETE CASCADE
 );
 
 -- Radio field: select one option
@@ -69,7 +70,8 @@ CREATE TABLE IF NOT EXISTS radio_fields (
   idx bigint,
   options text[],
   CONSTRAINT pk_radio_field PRIMARY KEY (form_version_id, idx),
-  CONSTRAINT fk_ff_id FOREIGN KEY (form_version_id, idx) REFERENCES form_fields ON DELETE CASCADE
+  CONSTRAINT fk_ff_id FOREIGN KEY (form_version_id, idx) REFERENCES form_fields
+    ON DELETE CASCADE
 );
 
 -- Text field: either short answer (single line) or long answer (multiline)
@@ -78,7 +80,8 @@ CREATE TABLE IF NOT EXISTS text_fields (
   idx bigint,
   paragraph boolean NOT NULL DEFAULT FALSE,
   CONSTRAINT pk_text_field PRIMARY KEY (form_version_id, idx),
-  CONSTRAINT fk_ff_id FOREIGN KEY (form_version_id, idx) REFERENCES form_fields ON DELETE CASCADE
+  CONSTRAINT fk_ff_id FOREIGN KEY (form_version_id, idx) REFERENCES form_fields
+    ON DELETE CASCADE
 );
 
 -- Task: Created by a client who fills out a form
@@ -117,7 +120,8 @@ CREATE TABLE IF NOT EXISTS filled_checkbox_fields (
   idx integer,
   selected_options text[],
   CONSTRAINT pk_filled_checkbox_fields PRIMARY KEY (task_id, idx),
-  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields ON DELETE CASCADE
+  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields
+    ON DELETE CASCADE
 );
 
 -- Filled radio field with the selected option
@@ -126,7 +130,8 @@ CREATE TABLE IF NOT EXISTS filled_radio_fields (
   idx integer,
   selected_option text,
   CONSTRAINT pk_filled_radio_fields PRIMARY KEY (task_id, idx),
-  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields ON DELETE CASCADE
+  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields
+    ON DELETE CASCADE
 );
 
 -- Filled text field with the text content
@@ -135,7 +140,8 @@ CREATE TABLE IF NOT EXISTS filled_text_fields (
   idx integer,
   content text,
   CONSTRAINT pk_filled_text_fields PRIMARY KEY (task_id, idx),
-  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields ON DELETE CASCADE
+  CONSTRAINT fk_ff_id FOREIGN KEY (task_id, idx) REFERENCES filled_form_fields
+    ON DELETE CASCADE
 );
 
 COMMIT;

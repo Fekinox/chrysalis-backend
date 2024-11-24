@@ -13,18 +13,10 @@ import (
 )
 
 const addCheckboxFieldToForm = `-- name: AddCheckboxFieldToForm :one
-INSERT INTO checkbox_fields (
-    form_version_id,
-    idx,
-    options
-) VALUES (
-    $1,
-    $2,
-    $3
-) RETURNING
-    form_version_id,
-    idx,
-    options
+INSERT INTO checkbox_fields (form_version_id, idx, options)
+  VALUES ($1, $2, $3)
+RETURNING
+  form_version_id, idx, options
 `
 
 type AddCheckboxFieldToFormParams struct {
@@ -41,24 +33,10 @@ func (q *Queries) AddCheckboxFieldToForm(ctx context.Context, arg AddCheckboxFie
 }
 
 const addFormFieldToForm = `-- name: AddFormFieldToForm :one
-INSERT INTO form_fields (
-    form_version_id,
-    idx,
-    ftype,
-    prompt,
-    required
-) VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5
-) RETURNING
-    form_version_id,
-    idx,
-    ftype,
-    prompt,
-    required
+INSERT INTO form_fields (form_version_id, idx, ftype, prompt, required)
+  VALUES ($1, $2, $3, $4, $5)
+RETURNING
+  form_version_id, idx, ftype, prompt, required
 `
 
 type AddFormFieldToFormParams struct {
@@ -89,18 +67,10 @@ func (q *Queries) AddFormFieldToForm(ctx context.Context, arg AddFormFieldToForm
 }
 
 const addRadioFieldToForm = `-- name: AddRadioFieldToForm :one
-INSERT INTO radio_fields (
-    form_version_id,
-    idx,
-    options
-) VALUES (
-    $1,
-    $2,
-    $3
-) RETURNING
-    form_version_id,
-    idx,
-    options
+INSERT INTO radio_fields (form_version_id, idx, options)
+  VALUES ($1, $2, $3)
+RETURNING
+  form_version_id, idx, options
 `
 
 type AddRadioFieldToFormParams struct {
@@ -117,18 +87,10 @@ func (q *Queries) AddRadioFieldToForm(ctx context.Context, arg AddRadioFieldToFo
 }
 
 const addTextFieldToForm = `-- name: AddTextFieldToForm :one
-INSERT INTO text_fields (
-    form_version_id,
-    idx,
-    paragraph
-) VALUES (
-    $1,
-    $2,
-    $3
-) RETURNING
-    form_version_id,
-    idx,
-    paragraph
+INSERT INTO text_fields (form_version_id, idx, paragraph)
+  VALUES ($1, $2, $3)
+RETURNING
+  form_version_id, idx, paragraph
 `
 
 type AddTextFieldToFormParams struct {
@@ -150,7 +112,8 @@ INSERT INTO current_form_versions (form_id, form_version_id)
 ON CONFLICT (form_id)
   DO UPDATE SET
     form_version_id = EXCLUDED.form_version_id
-  RETURNING form_id, form_version_id
+  RETURNING
+    form_id, form_version_id
 `
 
 type AssignCurrentFormVersionParams struct {
@@ -168,7 +131,8 @@ func (q *Queries) AssignCurrentFormVersion(ctx context.Context, arg AssignCurren
 const createForm = `-- name: CreateForm :one
 INSERT INTO forms (creator_id, slug)
   VALUES ($1, $2)
-RETURNING id, creator_id, slug
+RETURNING
+  id, creator_id, slug
 `
 
 type CreateFormParams struct {
@@ -190,16 +154,10 @@ func (q *Queries) CreateForm(ctx context.Context, arg CreateFormParams) (*Create
 }
 
 const createFormVersion = `-- name: CreateFormVersion :one
-INSERT INTO form_versions (
-    form_id,
-    name,
-    description
-) VALUES (
-    $1,
-    $2,
-    $3
-)
-RETURNING id, name, description, created_at, form_id
+INSERT INTO form_versions (form_id, name, description)
+  VALUES ($1, $2, $3)
+RETURNING
+  id, name, description, created_at, form_id
 `
 
 type CreateFormVersionParams struct {
@@ -222,7 +180,9 @@ func (q *Queries) CreateFormVersion(ctx context.Context, arg CreateFormVersionPa
 }
 
 const deleteForm = `-- name: DeleteForm :exec
-DELETE FROM forms WHERE forms.slug = $1 AND forms.creator_id = $2
+DELETE FROM forms
+WHERE forms.slug = $1
+  AND forms.creator_id = $2
 `
 
 type DeleteFormParams struct {
@@ -235,107 +195,48 @@ func (q *Queries) DeleteForm(ctx context.Context, arg DeleteFormParams) error {
 	return err
 }
 
-const findDuplicates = `-- name: FindDuplicates :many
-SELECT
-    r_fv.id
-FROM
-    form_versions AS fv
-    INNER JOIN form_versions AS r_fv USING (form_id, name, description)
-WHERE
-    fv.id = $1 AND
-    r_fv.id <> $1 AND
-    (
-        SELECT COUNT(*) FROM form_fields
-        WHERE form_fields.form_version_id = fv.id
-    ) =
-    (
-        SELECT COUNT(*)
-        FROM
-            form_fields AS l_ffs
-            LEFT JOIN checkbox_fields AS l_ch_fs USING (form_version_id, idx)
-            LEFT JOIN radio_fields AS l_r_fs USING (form_version_id, idx)
-            LEFT JOIN text_fields AS l_t_fs USING (form_version_id, idx)
-            FULL OUTER JOIN
-                form_fields AS r_ffs
-                LEFT JOIN checkbox_fields AS r_ch_fs USING (form_version_id, idx)
-                LEFT JOIN radio_fields AS r_r_fs USING (form_version_id, idx)
-                LEFT JOIN text_fields AS r_t_fs USING (form_version_id, idx)
-            USING (idx, ftype, prompt, required)
-        WHERE
-            l_ffs.form_version_id = fv.id AND
-            r_ffs.form_version_id = r_fv.id AND
-            CASE l_ffs.ftype
-                WHEN 'checkbox' THEN
-                    l_ch_fs.options = r_ch_fs.options          
-                WHEN 'radio' THEN
-                    l_r_fs.options = r_r_fs.options          
-                ELSE
-                    l_t_fs.paragraph = r_t_fs.paragraph
-            END
-    )
-`
-
-func (q *Queries) FindDuplicates(ctx context.Context, id int64) ([]int64, error) {
-	rows, err := q.db.Query(ctx, findDuplicates, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const findIfFormUnchanged = `-- name: FindIfFormUnchanged :many
 SELECT
-    1
+  1
 FROM
-    form_versions AS fv
-    INNER JOIN current_form_versions AS r_cfv ON fv.form_id = r_cfv.form_id
-    INNER JOIN form_versions AS r_fv ON r_cfv.form_version_id = r_fv.id
+  form_versions AS fv
+  INNER JOIN current_form_versions AS r_cfv ON fv.form_id = r_cfv.form_id
+  INNER JOIN form_versions AS r_fv ON r_cfv.form_version_id = r_fv.id
 WHERE
-    fv.id = $1 AND
-    r_fv.id <> $1 AND
-    fv.name = r_fv.name AND
-    fv.description = r_fv.description AND
-    (
-        SELECT COUNT(*) FROM form_fields
-        WHERE form_fields.form_version_id = fv.id
-    ) =
-    (
-        SELECT COUNT(*)
-        FROM
-            form_fields AS l_ffs
-            LEFT JOIN checkbox_fields AS l_ch_fs USING (form_version_id, idx)
-            LEFT JOIN radio_fields AS l_r_fs USING (form_version_id, idx)
-            LEFT JOIN text_fields AS l_t_fs USING (form_version_id, idx)
-            FULL OUTER JOIN
-                form_fields AS r_ffs
-                LEFT JOIN checkbox_fields AS r_ch_fs USING (form_version_id, idx)
-                LEFT JOIN radio_fields AS r_r_fs USING (form_version_id, idx)
-                LEFT JOIN text_fields AS r_t_fs USING (form_version_id, idx)
-            USING (idx, ftype, prompt, required)
-        WHERE
-            l_ffs.form_version_id = fv.id AND
-            r_ffs.form_version_id = r_fv.id AND
-            CASE l_ffs.ftype
-                WHEN 'checkbox' THEN
-                    l_ch_fs.options = r_ch_fs.options          
-                WHEN 'radio' THEN
-                    l_r_fs.options = r_r_fs.options          
-                ELSE
-                    l_t_fs.paragraph = r_t_fs.paragraph
-            END
-    )
+  fv.id = $1
+  AND r_fv.id <> $1
+  AND fv.name = r_fv.name
+  AND fv.description = r_fv.description
+  AND (
+    SELECT
+      COUNT(*)
+    FROM
+      form_fields
+    WHERE
+      form_fields.form_version_id = fv.id) = (
+    SELECT
+      COUNT(*)
+    FROM
+      form_fields AS l_ffs
+    LEFT JOIN checkbox_fields AS l_ch_fs USING (form_version_id, idx)
+    LEFT JOIN radio_fields AS l_r_fs USING (form_version_id, idx)
+    LEFT JOIN text_fields AS l_t_fs USING (form_version_id, idx)
+    FULL OUTER JOIN form_fields AS r_ffs
+    LEFT JOIN checkbox_fields AS r_ch_fs USING (form_version_id, idx)
+    LEFT JOIN radio_fields AS r_r_fs USING (form_version_id, idx)
+    LEFT JOIN text_fields AS r_t_fs USING (form_version_id, idx)
+    USING (idx, ftype, prompt, required)
+  WHERE
+    l_ffs.form_version_id = fv.id
+    AND r_ffs.form_version_id = r_fv.id
+    AND CASE l_ffs.ftype
+    WHEN 'checkbox' THEN
+      l_ch_fs.options = r_ch_fs.options
+    WHEN 'radio' THEN
+      l_r_fs.options = r_r_fs.options
+    ELSE
+      l_t_fs.paragraph = r_t_fs.paragraph
+    END)
 `
 
 func (q *Queries) FindIfFormUnchanged(ctx context.Context, id int64) ([]int32, error) {
@@ -373,8 +274,8 @@ FROM
   INNER JOIN current_form_versions AS cfv ON forms.id = cfv.form_id
   INNER JOIN form_versions AS fv ON fv.id = cfv.form_version_id
 WHERE
-  forms.slug = $1 AND
-  forms.creator_id = $2
+  forms.slug = $1
+  AND forms.creator_id = $2
 `
 
 type GetCurrentFormVersionBySlugParams struct {
@@ -467,15 +368,15 @@ func (q *Queries) GetFormFields(ctx context.Context, formVersionID int64) ([]*Ge
 
 const getFormHeaderBySlug = `-- name: GetFormHeaderBySlug :one
 SELECT
-    forms.id,
-    forms.slug,
-    forms.creator_id,
-    forms.created_at
+  forms.id,
+  forms.slug,
+  forms.creator_id,
+  forms.created_at
 FROM
-    forms
+  forms
 WHERE
-    forms.slug = $1 AND 
-    forms.creator_id = $2
+  forms.slug = $1
+  AND forms.creator_id = $2
 `
 
 type GetFormHeaderBySlugParams struct {
@@ -548,20 +449,21 @@ func (q *Queries) GetFormVersionById(ctx context.Context, formVersionID int64) (
 
 const getUserFormHeaders = `-- name: GetUserFormHeaders :many
 SELECT
-    forms.id,
-    forms.slug,
-    forms.creator_id,
-    fv.name,
-    fv.description,
-    forms.created_at,
-    fv.created_at AS updated_at
+  forms.id,
+  forms.slug,
+  forms.creator_id,
+  fv.name,
+  fv.description,
+  forms.created_at,
+  fv.created_at AS updated_at
 FROM
-    forms
-    INNER JOIN current_form_versions AS cfv ON cfv.form_id = forms.id
-    INNER JOIN form_versions AS fv ON cfv.form_version_id = fv.id
+  forms
+  INNER JOIN current_form_versions AS cfv ON cfv.form_id = forms.id
+  INNER JOIN form_versions AS fv ON cfv.form_version_id = fv.id
 WHERE
-    forms.creator_id = $1
-ORDER BY updated_at DESC
+  forms.creator_id = $1
+ORDER BY
+  updated_at DESC
 `
 
 type GetUserFormHeadersRow struct {

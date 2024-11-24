@@ -26,7 +26,6 @@ type Querier interface {
 	CreateTaskState(ctx context.Context, taskID int64) (*TaskState, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
 	DeleteForm(ctx context.Context, arg DeleteFormParams) error
-	FindDuplicates(ctx context.Context, id int64) ([]int64, error)
 	FindIfFormUnchanged(ctx context.Context, id int64) ([]int32, error)
 	GetChrysalisStats(ctx context.Context) (*GetChrysalisStatsRow, error)
 	GetCurrentFormVersionBySlug(ctx context.Context, arg GetCurrentFormVersionBySlugParams) (*GetCurrentFormVersionBySlugRow, error)
@@ -40,7 +39,6 @@ type Querier interface {
 	GetServiceTasksWithStatus(ctx context.Context, arg GetServiceTasksWithStatusParams) ([]*GetServiceTasksWithStatusRow, error)
 	GetTaskByStatusAndIndex(ctx context.Context, arg GetTaskByStatusAndIndexParams) (*GetTaskByStatusAndIndexRow, error)
 	GetTaskCounts(ctx context.Context, arg GetTaskCountsParams) ([]*GetTaskCountsRow, error)
-	GetTaskFields(ctx context.Context) (int32, error)
 	GetTaskHeader(ctx context.Context, arg GetTaskHeaderParams) (*GetTaskHeaderRow, error)
 	GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)

@@ -3,10 +3,10 @@ BEGIN;
 TRUNCATE tasks CASCADE;
 
 ALTER TABLE tasks
-    DROP CONSTRAINT IF EXISTS tasks_slug_unique,
-    ADD CONSTRAINT tasks_slug_key UNIQUE (slug),
-    DROP CONSTRAINT tasks_fvid_fk,
-    DROP COLUMN IF EXISTS form_version_id;
+  DROP CONSTRAINT IF EXISTS tasks_slug_unique,
+  ADD CONSTRAINT tasks_slug_key UNIQUE (slug),
+  DROP CONSTRAINT tasks_fvid_fk,
+  DROP COLUMN IF EXISTS form_version_id;
 
 CREATE TABLE IF NOT EXISTS filled_forms (
   task_id bigint,
@@ -16,6 +16,5 @@ CREATE TABLE IF NOT EXISTS filled_forms (
   CONSTRAINT fk_form_version_id FOREIGN KEY (form_version_id) REFERENCES
     form_versions ON DELETE CASCADE
 );
-
 
 COMMIT;
