@@ -18,9 +18,7 @@ function refreshColumn(status) {
 }
 
 async function updateStatus({ username, service, task, status }) {
-  await fetch(`/app/${username}/services/${service}/tasks/${task}?status=${status}`, {
-    method: "PUT",
-  });
+  await api.put(`/app/${username}/services/${service}/tasks/${task}?status=${status}`);
   refreshCurrentTab();
 }
 
@@ -50,9 +48,7 @@ function attachSortable(username, service) {
         srcIndex: ev.oldIndex,
         dstIndex: ev.newIndex,
       })
-      await fetch(`/api/users/${username}/services/${service}/move?${params}`, {
-        method: "POST",
-      });
+      await api.post(`/api/users/${username}/services/${service}/move?${params}`);
       refreshCurrentTab();
     },
   }));
@@ -77,9 +73,7 @@ function attachColumnSortable(username, service, status) {
         dstStatus: ev.to.dataset.status,
         dstIndex: ev.newIndex
       })
-      await fetch(`/api/users/${username}/services/${service}/move?${params}`, {
-        method: "POST",
-      });
+      await api.post(`/api/users/${username}/services/${service}/move?${params}`);
 
       refreshColumn(ev.to.dataset.status)
       refreshColumn(ev.from.dataset.status)

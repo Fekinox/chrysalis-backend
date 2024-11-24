@@ -78,49 +78,43 @@ document.addEventListener('alpine:init', () => {
 
     async submit(username, service) {
       try {
-        resp = await fetch(`/app/${username}/services/${service}/form`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            "task_name": this.taskName,
-            "task_summary": this.taskSummary,
-            "fields": this.fields.map((f) => {
-              res = {
-                type: f.type,
-              }
-              switch(f.type) {
-                case 'checkbox':
-                  res.filled = f.selectedOptions.length != 0
-                  res.data = {
-                    selectedOptions: f.selectedOptions
-                  }
-                  break
-                case 'radio':
-                  res.filled = f.selectedOption != ""
-                  res.data = {
-                    selectedOption: f.selectedOption
-                  }
-                  break
-                case 'text':
-                  res.filled = f.content != ""
-                  res.data = {
-                      content: f.content
-                  }
-                  break
-                case 'paragraph':
-                  res.type = 'text'
-                  res.filled = f.content != ""
-                  res.data = {
-                      content: f.content
-                  }
-                  break
-                default:
-                  throw new Error(`Invalid type ${f.type}`)
-              }
-              return res
-            })
+        resp = await api.post(`/app/${username}/services/${service}/form`, {
+          "task_name": this.taskName,
+          "task_summary": this.taskSummary,
+          "fields": this.fields.map((f) => {
+            res = {
+              type: f.type,
+            }
+            switch(f.type) {
+              case 'checkbox':
+                res.filled = f.selectedOptions.length != 0
+                res.data = {
+                  selectedOptions: f.selectedOptions
+                }
+                break
+              case 'radio':
+                res.filled = f.selectedOption != ""
+                res.data = {
+                  selectedOption: f.selectedOption
+                }
+                break
+              case 'text':
+                res.filled = f.content != ""
+                res.data = {
+                    content: f.content
+                }
+                break
+              case 'paragraph':
+                res.type = 'text'
+                res.filled = f.content != ""
+                res.data = {
+                    content: f.content
+                }
+                break
+              default:
+                throw new Error(`Invalid type ${f.type}`)
+            }
+            return res
           })
         });
 
@@ -135,9 +129,7 @@ document.addEventListener('alpine:init', () => {
 
     async loadFromURL(username, service) {
       try {
-        resp = await fetch(`/api/users/${username}/services/${service}`, {
-          method: "GET",
-        });
+        resp = await api.get(`/api/users/${username}/services/${service}`);
         json = await resp.json();
 
         this.title = json.name;

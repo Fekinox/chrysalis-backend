@@ -22,6 +22,12 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.GET("/helloworld", DummyTemplateHandler)
 	app.GET("/:username/services", mc.GetUserServices)
 
+	app.GET("/login", mc.LoginForm)
+	app.POST("/login", mc.HandleLogin)
+
+	app.GET("/register", mc.RegisterForm)
+	app.POST("/register", mc.HandleRegister)
+
 	app.GET("/header", HTMXRedirect("/app"), mc.Header)
 
 	app.GET("/:username/services/:servicename/dashboard", mc.ServiceDashboard)
@@ -45,11 +51,13 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.PUT(
 		"/:username/services/:servicename/tasks/:taskname",
 		HasSessionKey(mc.con.sessionManager),
+		CsrfProtect(mc.con.sessionManager),
 		mc.UpdateTask,
 	)
 	app.POST(
 		"/:username/services/:servicename/tasks/swap",
 		HasSessionKey(mc.con.sessionManager),
+		CsrfProtect(mc.con.sessionManager),
 		mc.UpdateTask,
 	)
 
@@ -61,6 +69,7 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.POST(
 		"/:username/services/:servicename/form",
 		RedirectToLogin(mc.con.sessionManager),
+		CsrfProtect(mc.con.sessionManager),
 		mc.CreateTask,
 	)
 
@@ -70,26 +79,26 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	)
 	app.PUT("/:username/services/:servicename",
 		RedirectToLogin(mc.con.sessionManager),
+		CsrfProtect(mc.con.sessionManager),
 		mc.UpdateService,
 	)
 
 	app.GET("/new-service",
 		RedirectToLogin(mc.con.sessionManager),
+		CsrfProtect(mc.con.sessionManager),
 		mc.ServiceCreator,
 	)
 	app.POST("/new-service",
 		HasSessionKey(mc.con.sessionManager),
+		CsrfProtect(mc.con.sessionManager),
 		mc.CreateNewService,
 	)
 	app.GET("/:username/services/:servicename/tasks/:taskname", mc.TaskDetail)
 
-	app.GET("/login", mc.LoginForm)
-	app.POST("/login", mc.HandleLogin)
-
-	app.GET("/register", mc.RegisterForm)
-	app.POST("/register", mc.HandleRegister)
-
-	app.GET("/dashboard", RedirectToLogin(mc.con.sessionManager), mc.UserDashboard)
+	app.GET("/dashboard",
+		RedirectToLogin(mc.con.sessionManager),
+		CsrfProtect(mc.con.sessionManager),
+		mc.UserDashboard)
 }
 
 func NewMainController(c *ChrysalisServer) (*MainController, error) {
@@ -114,10 +123,7 @@ func (dc *MainController) GetUserServices(c *gin.Context) {
 		username := c.Param("username")
 		if username == "" {
 			err := errors.New("Must provide username")
-			AbortError(c,
-				http.StatusBadRequest,
-				err,
-			)
+			AbortError(c, http.StatusBadRequest, err)
 			return err
 		}
 
@@ -413,6 +419,7 @@ func (mc *MainController) TaskDetail(c *gin.Context) {
 }
 
 func (mc *MainController) ServiceForm(c *gin.Context) {
+	sessionData, _ := GetSessionData(c)
 	params := models.ServiceFormParams{
 		Username: c.Param("username"),
 		Service:  c.Param("servicename"),
@@ -447,7 +454,8 @@ func (mc *MainController) ServiceForm(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "serviceForm.html.tmpl", gin.H{
-		"form": form,
+		"form":    form,
+		"session": sessionData,
 		"params": gin.H{
 			"username": c.Param("username"),
 			"service":  c.Param("servicename"),
@@ -494,11 +502,16 @@ func (mc *MainController) CreateTask(c *gin.Context) {
 }
 
 func (mc *MainController) ServiceCreator(c *gin.Context) {
-	c.HTML(http.StatusOK, "serviceCreator.html.tmpl", nil)
+	sessionData, _ := GetSessionData(c)
+	c.HTML(http.StatusOK, "serviceCreator.html.tmpl", gin.H{
+		"session": sessionData,
+	})
 }
 
 func (mc *MainController) ServiceEditor(c *gin.Context) {
+	sessionData, _ := GetSessionData(c)
 	c.HTML(http.StatusOK, "serviceEditor.html.tmpl", gin.H{
+		"session": sessionData,
 		"params": gin.H{
 			"username": c.Param("username"),
 			"service":  c.Param("servicename"),
@@ -581,7 +594,6 @@ func (mc *MainController) CreateNewService(c *gin.Context) {
 			Fields:      spec.Fields,
 		},
 	)
-
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 		return

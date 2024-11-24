@@ -30,6 +30,11 @@ func (sm *MemorySessionManager) NewSession(
 		return "", err
 	}
 
+	csrf, err := GenerateCSRFToken()
+	if err != nil {
+		return "", err
+	}
+
 	for {
 		if _, ok := sm.sessions[key]; !ok {
 			break
@@ -43,6 +48,7 @@ func (sm *MemorySessionManager) NewSession(
 	sm.sessions[string(key)] = &SessionData{
 		Username:  username,
 		UserID:    id,
+		CsrfToken: csrf,
 		CreatedAt: time.Now(),
 	}
 

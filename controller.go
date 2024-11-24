@@ -2,17 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 	"slices"
-	"strings"
 	"text/template"
 	"time"
 
 	"github.com/Fekinox/chrysalis-backend/internal/config"
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/htmlrenderer"
+	"github.com/Fekinox/chrysalis-backend/internal/models"
 	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -81,7 +82,13 @@ func CreateController(cfg config.Config) (*ChrysalisServer, error) {
 			}
 		},
 		"hyphenize": func(s string) string {
-			return strings.ReplaceAll(s, " ", "-")
+			return models.Hyphenize(s)
+		},
+		"dehyphenize": func(s string) string {
+			return models.Dehyphenize(s)
+		},
+		"csrftoken": func(s *session.SessionData) string {
+			return hex.EncodeToString(s.CsrfToken)
 		},
 	})
 	render.AddIncludes("templates/includes")

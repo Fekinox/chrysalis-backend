@@ -3,9 +3,11 @@ package main
 import (
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +19,13 @@ import (
 
 const MAX_API_KEY_LENGTH = 64
 
+var CSRF_SAFE_METHODS []string = []string{
+	"GET",
+	"HEAD",
+	"OPTIONS",
+	"TRACE",
+}
+
 var (
 	MissingAPIKeyError         = errors.New("Could not find API key")
 	InvalidAuthenticationError = errors.New("Invalid authentication")
@@ -26,6 +35,7 @@ var (
 	TimeoutError = errors.New("Timeout")
 
 	ErrNotLoggedIn = errors.New("Not logged in")
+	ErrForbidden   = errors.New("Forbidden")
 
 	ErrMissingParam = errors.New("Param does not exist")
 )
@@ -213,6 +223,45 @@ func HasSessionKey(sm session.Manager) gin.HandlerFunc {
 			return
 		}
 
+		c.Next()
+	}
+}
+
+// Checks for the CSRF token in the `X-Csrf-Token` header.
+func GetCSRFToken(r *http.Request) ([]byte, bool) {
+	header := r.Header.Get("X-CSRF-Token")
+	if header == "" {
+		return nil, false
+	}
+	decodedHeader, err := hex.DecodeString(header)
+	if err != nil {
+		return nil, false
+	}
+	return decodedHeader, true
+}
+
+func CsrfProtect(sm session.Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if slices.Contains(CSRF_SAFE_METHODS, c.Request.Method) {
+			c.Next()
+			return
+		}
+		session, ok := GetSessionData(c)
+		if !ok {
+			AbortError(c, http.StatusForbidden, ErrForbidden)
+			return
+		}
+
+		token, ok := GetCSRFToken(c.Request)
+		if !ok {
+			AbortError(c, http.StatusForbidden, ErrForbidden)
+			return
+		}
+
+		if subtle.ConstantTimeCompare(token, session.CsrfToken) == 0 {
+			AbortError(c, http.StatusForbidden, ErrForbidden)
+			return
+		}
 		c.Next()
 	}
 }

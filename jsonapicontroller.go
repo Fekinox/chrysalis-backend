@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,8 +27,10 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	auth.POST("/login", jc.Login)
 	auth.POST("/register", jc.Register)
 	auth.POST("/logout", HasSessionKey(jc.con.sessionManager), jc.Logout)
+	auth.POST("/csrf", HasSessionKey(jc.con.sessionManager), jc.CSRFToken)
 
 	users := api.Group("/users")
+	users.Use(CsrfProtect(jc.con.sessionManager))
 	// Get all services a user owns
 	users.GET("/:username/services", jc.GetUserServices)
 	users.GET("/:username/services/:servicename", jc.GetServiceBySlug)
@@ -222,6 +225,18 @@ func (jc *JSONAPIController) Logout(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully logged out",
+	})
+}
+
+func (jc *JSONAPIController) CSRFToken(c *gin.Context) {
+	data, ok := GetSessionData(c)
+	if !ok {
+		AbortError(c, http.StatusForbidden, ErrForbidden)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"csrf-token": hex.EncodeToString(data.CsrfToken),
 	})
 }
 

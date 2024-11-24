@@ -9,7 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
-const SESSION_KEY_LENGTH_BYTES = 16
+const SESSION_KEY_LENGTH_BYTES = 32
+const CSRF_TOKEN_LENGTH_BYTES = 32
 
 var (
 	ErrSessionNotFound       error = errors.New("Session not found")
@@ -21,6 +22,7 @@ var (
 type SessionData struct {
 	Username  string
 	UserID    uuid.UUID
+	CsrfToken []byte
 	CreatedAt time.Time
 }
 
@@ -45,4 +47,13 @@ func GenerateSessionKey() (string, error) {
 	}
 
 	return fmt.Sprintf("%x", randomBytes), nil
+}
+
+func GenerateCSRFToken() ([]byte, error) {
+	randomBytes, err := genbytes.GenRandomBytes(CSRF_TOKEN_LENGTH_BYTES)
+	if err != nil {
+		return nil, ErrSessionCreationFailed
+	}
+
+	return randomBytes, nil
 }
