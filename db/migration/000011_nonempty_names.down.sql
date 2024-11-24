@@ -1,0 +1,12 @@
+BEGIN;
+
+ALTER TABLE IF EXISTS forms
+  DROP CONSTRAINT IF EXISTS min_length_slug;
+
+ALTER TABLE IF EXISTS users
+  DROP CONSTRAINT IF EXISTS min_length_username;
+
+ALTER TABLE IF EXISTS form_versions
+  DROP CONSTRAINT IF EXISTS nonempty_name;
+
+COMMIT;
