@@ -15,6 +15,7 @@ import (
 	"github.com/Fekinox/chrysalis-backend/internal/htmlrenderer"
 	"github.com/Fekinox/chrysalis-backend/internal/models"
 	"github.com/Fekinox/chrysalis-backend/internal/session"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -24,6 +25,7 @@ type ChrysalisServer struct {
 	router *gin.Engine
 	pool   *pgxpool.Pool
 	store  *db.Store
+	cors   cors.Config
 
 	sessionManager *session.Manager
 }
@@ -87,7 +89,7 @@ func CreateController(cfg config.Config) (*ChrysalisServer, error) {
 		"dehyphenize": func(s string) string {
 			return models.Dehyphenize(s)
 		},
-		"csrftoken": func(s *session.SessionData) string {
+		"csrftoken": func(s session.SessionData) string {
 			return hex.EncodeToString(s.CsrfToken)
 		},
 	})
@@ -95,11 +97,18 @@ func CreateController(cfg config.Config) (*ChrysalisServer, error) {
 	render.AddTemplates("templates/templates")
 	engine.HTMLRender = render
 
+	cors := cors.Config{
+		AllowOrigins:     []string{"http://localhost:5050", "https://localhost:5050"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}
+
 	return &ChrysalisServer{
 		cfg:    cfg,
 		pool:   pool,
 		router: engine,
 		store:  store,
+		cors:   cors,
 
 		sessionManager: session.NewMemorySessionManager(),
 	}, nil

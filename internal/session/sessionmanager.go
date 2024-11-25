@@ -20,15 +20,17 @@ var (
 )
 
 type SessionData struct {
+	LoggedIn  bool
 	Username  string
 	UserID    uuid.UUID
+	Key       string
 	CsrfToken []byte
 	CreatedAt time.Time
 }
 
 type ManagerBackend interface {
-	Set(key string, value *SessionData) error
-	Get(key string) (*SessionData, error)
+	Set(key string, value SessionData) error
+	Get(key string) (SessionData, error)
 	Del(key string) error
 }
 
@@ -54,15 +56,15 @@ type Manager struct {
 	ManagerBackend
 }
 
-func (m *Manager) NewSession(username string, id uuid.UUID) (string, error) {
+func (m *Manager) NewSession() (string, SessionData, error) {
 	key, err := GenerateSessionKey()
 	if err != nil {
-		return "", err
+		return "", SessionData{}, err
 	}
 
 	csrf, err := GenerateCSRFToken()
 	if err != nil {
-		return "", err
+		return "", SessionData{}, err
 	}
 
 	for {
@@ -70,29 +72,33 @@ func (m *Manager) NewSession(username string, id uuid.UUID) (string, error) {
 		if errors.Is(err, ErrSessionNotFound) {
 			break
 		} else if err != nil {
-			return "", err
+			return "", SessionData{}, err
 		}
 		key, err = GenerateSessionKey()
 		if err != nil {
-			return "", err
+			return "", SessionData{}, err
 		}
 	}
 
-	m.Set(key, &SessionData{
-		Username:  username,
-		UserID:    id,
+	data := SessionData{
+		Key:       key,
 		CsrfToken: csrf,
 		CreatedAt: time.Now(),
-	})
+	}
 
-	return key, nil
+	err = m.Set(key, data)
+	if err != nil {
+		return "", SessionData{}, err
+	}
+
+	return key, data, nil
 }
 
-func (m *Manager) GetSessionData(key string) (*SessionData, error) {
+func (m *Manager) GetSessionData(key string) (SessionData, error) {
 	return m.Get(key)
 }
 
-func (m *Manager) SetSessionData(key string, value *SessionData) error {
+func (m *Manager) SetSessionData(key string, value SessionData) error {
 	_, err := m.Get(key)
 	if err != nil {
 		return err
@@ -124,6 +130,8 @@ func (m *Manager) RefreshSession(key string) (string, error) {
 		}
 	}
 
+	data.Key = newKey
+
 	m.Del(key)
 	m.Set(newKey, data)
 
@@ -132,4 +140,23 @@ func (m *Manager) RefreshSession(key string) (string, error) {
 
 func (m *Manager) EndSession(key string) error {
 	return m.Del(key)
+}
+
+func (m *Manager) Login(key string, username string, userID uuid.UUID) error {
+	data, err := m.Get(key)
+	if err != nil {
+		return err
+	}
+	return m.Set(key, SessionData{
+		LoggedIn:  true,
+		Username:  username,
+		UserID:    userID,
+		Key:       key,
+		CsrfToken: data.CsrfToken,
+		CreatedAt: data.CreatedAt,
+	})
+}
+
+func (m *Manager) Logout(key string) error {
+	return m.EndSession(key)
 }

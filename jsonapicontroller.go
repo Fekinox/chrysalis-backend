@@ -11,6 +11,7 @@ import (
 	"github.com/Fekinox/chrysalis-backend/internal/formfield"
 	"github.com/Fekinox/chrysalis-backend/internal/genbytes"
 	"github.com/Fekinox/chrysalis-backend/internal/models"
+	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -26,8 +27,8 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	auth := api.Group("/auth")
 	auth.POST("/login", jc.Login)
 	auth.POST("/register", jc.Register)
-	auth.POST("/logout", HasSessionKey(jc.con.sessionManager), jc.Logout)
-	auth.POST("/csrf", HasSessionKey(jc.con.sessionManager), jc.CSRFToken)
+	auth.POST("/logout", jc.Logout)
+	auth.POST("/csrf", jc.CSRFToken)
 
 	users := api.Group("/users")
 	users.Use(CsrfProtect(jc.con.sessionManager))
@@ -35,15 +36,9 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	users.GET("/:username/services", jc.GetUserServices)
 	users.GET("/:username/services/:servicename", jc.GetServiceBySlug)
 
-	users.POST("/:username/services",
-		HasSessionKey(jc.con.sessionManager),
-		jc.CreateService)
-	users.PUT("/:username/services/:servicename",
-		HasSessionKey(jc.con.sessionManager),
-		jc.UpdateService)
-	users.DELETE("/:username/services/:servicename",
-		HasSessionKey(jc.con.sessionManager),
-		jc.DeleteService)
+	users.POST("/:username/services", jc.CreateService)
+	users.PUT("/:username/services/:servicename", jc.UpdateService)
+	users.DELETE("/:username/services/:servicename", jc.DeleteService)
 
 	// Get outbound and inbound tasks for a user
 	users.GET("/:username/outbound-tasks", jc.OutboundTasks)
@@ -51,34 +46,12 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 
 	// Tasks associated with a particular service
 	users.GET("/:username/services/:servicename/tasks", jc.GetTasksForService)
-	users.GET(
-		"/:username/services/:servicename/tasks/:taskslug",
-		jc.GetDetailedTaskInformation,
-	)
-	users.POST(
-		"/:username/services/:servicename/tasks",
-		HasSessionKey(jc.con.sessionManager),
-		jc.CreateTaskForService,
-	)
-	users.PUT(
-		"/:username/services/:servicename/tasks/:taskslug",
-		jc.UpdateTask,
-	)
-	users.POST(
-		"/:username/services/:servicename/swap",
-		HasSessionKey(jc.con.sessionManager),
-		jc.SwapTasks,
-	)
-	users.POST(
-		"/:username/services/:servicename/swap-idx",
-		HasSessionKey(jc.con.sessionManager),
-		jc.SwapTasksStatusAndIndex,
-	)
-	users.POST(
-		"/:username/services/:servicename/move",
-		HasSessionKey(jc.con.sessionManager),
-		jc.MoveTask,
-	)
+	users.GET("/:username/services/:servicename/tasks/:taskslug", jc.GetDetailedTaskInformation)
+	users.POST("/:username/services/:servicename/tasks", jc.CreateTaskForService)
+	users.PUT("/:username/services/:servicename/tasks/:taskslug", jc.UpdateTask)
+	users.POST("/:username/services/:servicename/swap", jc.SwapTasks)
+	users.POST("/:username/services/:servicename/swap-idx", jc.SwapTasksStatusAndIndex)
+	users.POST("/:username/services/:servicename/move", jc.MoveTask)
 }
 
 func NewJSONAPIController(c *ChrysalisServer) (*JSONAPIController, error) {
@@ -118,25 +91,20 @@ func (jc *JSONAPIController) Login(c *gin.Context) {
 		return
 	}
 
-	// Create session
-	sessionKey, err := jc.con.sessionManager.NewSession(u.Username, u.ID)
+	key, ok := GetSessionKey(c)
+	if !ok {
+		AbortError(c, http.StatusInternalServerError, session.ErrSessionNotFound)
+		return
+	}
+
+	err = jc.con.sessionManager.Login(key, u.Username, u.ID)
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	c.SetCookie(
-		"chrysalis-session-key",
-		string(sessionKey),
-		60*60*24,
-		"/",
-		"localhost",
-		false,
-		true,
-	)
-
 	c.JSON(http.StatusOK, gin.H{
-		"session_key": sessionKey,
+		"session_key": key,
 		"username":    u.Username,
 		"id":          u.ID,
 	})
@@ -174,54 +142,37 @@ func (jc *JSONAPIController) Register(c *gin.Context) {
 		return
 	}
 
-	// Create initial user session
-	sessionKey, err := jc.con.sessionManager.NewSession(u.Username, u.ID)
+	key, ok := GetSessionKey(c)
+	if !ok {
+		AbortError(c, http.StatusInternalServerError, session.ErrSessionNotFound)
+		return
+	}
+
+	err = jc.con.sessionManager.Login(key, u.Username, u.ID)
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	c.SetCookie(
-		"chrysalis-session-key",
-		sessionKey,
-		60*60*24,
-		"/",
-		"localhost",
-		false,
-		true,
-	)
-
 	c.JSON(http.StatusCreated, gin.H{
-		"session_key": sessionKey,
+		"session_key": key,
 		"username":    u.Username,
 		"id":          u.ID,
 	})
 }
 
 func (jc *JSONAPIController) Logout(c *gin.Context) {
-	key, ok := c.Value("sessionKey").(string)
+	key, ok := GetSessionKey(c)
 	if !ok {
-		AbortError(c,
-			http.StatusInternalServerError,
-			errors.New("Session key not set"),
-		)
+		AbortError(c, http.StatusInternalServerError, session.ErrSessionNotFound)
 		return
 	}
 
-	err := jc.con.sessionManager.EndSession(key)
+	err := jc.con.sessionManager.Logout(key)
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
+		return
 	}
-
-	c.SetCookie(
-		"chrysalis-session-key",
-		"",
-		0,
-		"/",
-		"localhost",
-		false,
-		true,
-	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully logged out",

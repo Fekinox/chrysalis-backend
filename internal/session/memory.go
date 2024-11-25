@@ -9,16 +9,16 @@ import (
 // ideal for use in production.
 type MemoryBackend struct {
 	mu       sync.RWMutex
-	sessions map[string]*SessionData
+	sessions map[string]SessionData
 }
 
 func NewMemorySessionManager() *Manager {
 	return &Manager{&MemoryBackend{
-		sessions: make(map[string]*SessionData),
+		sessions: make(map[string]SessionData),
 	}}
 }
 
-func (m *MemoryBackend) Set(key string, value *SessionData) error {
+func (m *MemoryBackend) Set(key string, value SessionData) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -26,13 +26,13 @@ func (m *MemoryBackend) Set(key string, value *SessionData) error {
 	return nil
 }
 
-func (m *MemoryBackend) Get(key string) (*SessionData, error) {
+func (m *MemoryBackend) Get(key string) (SessionData, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	v, ok := m.sessions[key]
 	if !ok {
-		return nil, ErrSessionNotFound
+		return SessionData{}, ErrSessionNotFound
 	}
 	return v, nil
 }

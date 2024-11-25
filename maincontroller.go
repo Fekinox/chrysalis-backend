@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/models"
+	"github.com/Fekinox/chrysalis-backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -112,9 +113,9 @@ func NewMainController(c *ChrysalisServer) (*MainController, error) {
 }
 
 func (mc *MainController) Header(c *gin.Context) {
-	sessionData, _ := GetSessionData(c)
+	session, _ := GetSessionData(c)
 	c.HTML(http.StatusOK, "header.html.tmpl", gin.H{
-		"sessionData": sessionData,
+		"session": session,
 	})
 }
 
@@ -604,11 +605,17 @@ func (mc *MainController) CreateNewService(c *gin.Context) {
 }
 
 func (mc *MainController) LoginForm(c *gin.Context) {
-	c.HTML(http.StatusOK, "login.html.tmpl", nil)
+	session, _ := GetSessionData(c)
+	c.HTML(http.StatusOK, "login.html.tmpl", gin.H{
+		"session": session,
+	})
 }
 
 func (mc *MainController) RegisterForm(c *gin.Context) {
-	c.HTML(http.StatusOK, "register.html.tmpl", nil)
+	session, _ := GetSessionData(c)
+	c.HTML(http.StatusOK, "register.html.tmpl", gin.H{
+		"session": session,
+	})
 }
 
 func (mc *MainController) HandleLogin(c *gin.Context) {
@@ -657,21 +664,17 @@ func (mc *MainController) HandleLogin(c *gin.Context) {
 	}
 
 	// Create session
-	sessionKey, err := mc.con.sessionManager.NewSession(u.Username, u.ID)
+	key, ok := GetSessionKey(c)
+	if !ok {
+		AbortError(c, http.StatusInternalServerError, session.ErrSessionNotFound)
+		return
+	}
+
+	err = mc.con.sessionManager.Login(key, u.Username, u.ID)
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
-
-	c.SetCookie(
-		"chrysalis-session-key",
-		string(sessionKey),
-		60*60*24,
-		"/",
-		"localhost",
-		false,
-		true,
-	)
 
 	c.Redirect(http.StatusSeeOther, "/app/dashboard")
 }
@@ -729,21 +732,17 @@ func (mc *MainController) HandleRegister(c *gin.Context) {
 	}
 
 	// Create initial user session
-	sessionKey, err := mc.con.sessionManager.NewSession(u.Username, u.ID)
+	key, ok := GetSessionKey(c)
+	if !ok {
+		AbortError(c, http.StatusInternalServerError, session.ErrSessionNotFound)
+		return
+	}
+
+	err = mc.con.sessionManager.Login(key, u.Username, u.ID)
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 		return
 	}
-
-	c.SetCookie(
-		"chrysalis-session-key",
-		sessionKey,
-		60*60*24,
-		"/",
-		"localhost",
-		false,
-		true,
-	)
 
 	c.Redirect(http.StatusSeeOther, "/app/dashboard")
 }

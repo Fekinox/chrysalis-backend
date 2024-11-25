@@ -169,7 +169,7 @@ func HTMXRedirect(dests ...string) gin.HandlerFunc {
 // Redirect user to given URL, reusing path params if necessary.
 func RedirectIfNotLoggedIn(sm *session.Manager, dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if _, ok := GetSessionData(c); ok {
+		if data, ok := GetSessionData(c); ok && data.LoggedIn {
 			c.Next()
 		} else {
 			ContextRedirect(c, http.StatusSeeOther, dests...)
@@ -182,25 +182,55 @@ func RedirectToLogin(sm *session.Manager) gin.HandlerFunc {
 	return RedirectIfNotLoggedIn(sm, "/app/login")
 }
 
-// Reads the session key cookie from the client and adds it to the context
+// If the user has a valid session key cookie, then extract the session data and attach it to the
+// request.
+// If the user does not have a valid session key cookie, then create one.
 func SessionKey(sm *session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionKey, err := c.Request.Cookie("chrysalis-session-key")
-		if err != nil {
+		var err error
+		var ses session.SessionData
+		if ses, err = extractSessionCookie(sm, c); err == nil {
+			c.Set("sessionKey", ses.Key)
+			c.Set("sessionData", ses)
 			c.Next()
-			return
-		}
-		sessionData, err := sm.GetSessionData(sessionKey.Value)
-		if err != nil {
+		} else if errors.Is(err, session.ErrSessionNotFound) {
+			key, data, err := sm.NewSession()
+			if err != nil {
+				AbortError(c, http.StatusInternalServerError, err)
+				return
+			}
+
+			c.SetCookie(
+				"chrysalis-session-key",
+				key,
+				60*60*24,
+				"/",
+				"localhost",
+				false,
+				true,
+			)
+			c.SetSameSite(http.SameSiteLaxMode)
+
+			c.Set("sessionKey", key)
+			c.Set("sessionData", data)
 			c.Next()
-			return
+		} else {
+			AbortError(c, http.StatusInternalServerError, err)
 		}
-
-		c.Set("sessionKey", sessionKey.Value)
-		c.Set("sessionData", sessionData)
-
-		c.Next()
 	}
+}
+
+func extractSessionCookie(sm *session.Manager, c *gin.Context) (session.SessionData, error) {
+	key, err := c.Request.Cookie("chrysalis-session-key")
+	if err != nil {
+		return session.SessionData{}, err
+	}
+	data, err := sm.GetSessionData(key.Value)
+	if err != nil {
+		return session.SessionData{}, err
+	}
+
+	return data, err
 }
 
 func contextGetter[T any](key any) func(c *gin.Context) (T, bool) {
@@ -211,7 +241,7 @@ func contextGetter[T any](key any) func(c *gin.Context) (T, bool) {
 }
 
 var (
-	GetSessionData = contextGetter[*session.SessionData]("sessionData")
+	GetSessionData = contextGetter[session.SessionData]("sessionData")
 	GetSessionKey  = contextGetter[string]("sessionKey")
 )
 
@@ -227,19 +257,28 @@ func HasSessionKey(sm *session.Manager) gin.HandlerFunc {
 	}
 }
 
+func CSRFTokenExists(r *http.Request) bool {
+	return r.Header.Get("X-CSRF-Protection") != ""
+}
+
 // Checks for the CSRF token in the `X-Csrf-Token` header.
-func GetCSRFToken(r *http.Request) ([]byte, bool) {
-	header := r.Header.Get("X-CSRF-Token")
-	if header == "" {
+func GetCSRFTokenInHeaders(r *http.Request) ([]byte, bool) {
+	var token string
+	if r.Header.Get("X-CSRF-Protection") == "" {
 		return nil, false
 	}
-	decodedHeader, err := hex.DecodeString(header)
+	token = r.Header.Get("X-CSRF-Token")
+	if token == "" {
+		return nil, false
+	}
+	decodedHeader, err := hex.DecodeString(token)
 	if err != nil {
 		return nil, false
 	}
 	return decodedHeader, true
 }
 
+// Compares the CSRF token sent in the request headers
 func CsrfProtect(sm *session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if slices.Contains(CSRF_SAFE_METHODS, c.Request.Method) {
@@ -252,7 +291,7 @@ func CsrfProtect(sm *session.Manager) gin.HandlerFunc {
 			return
 		}
 
-		token, ok := GetCSRFToken(c.Request)
+		token, ok := GetCSRFTokenInHeaders(c.Request)
 		if !ok {
 			AbortError(c, http.StatusForbidden, ErrForbidden)
 			return
@@ -263,6 +302,20 @@ func CsrfProtect(sm *session.Manager) gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// Checks the request's header for a CSRF protection flag. Merely checking for the existence of
+// this header provides CORS protection for fetch and XHR requests: any request with non-simple
+// headers is subject to a CORS preflight check if it originated from a web browser. Full CSRF
+// protection is necessary if a site sends simple requests or uses form tags.
+func HasCSRFHeader() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if slices.Contains(CSRF_SAFE_METHODS, c.Request.Method) || CSRFTokenExists(c.Request) {
+			c.Next()
+		} else {
+			AbortError(c, http.StatusForbidden, ErrForbidden)
+		}
 	}
 }
 
