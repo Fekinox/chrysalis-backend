@@ -26,18 +26,10 @@ type SessionData struct {
 	CreatedAt time.Time
 }
 
-type Manager interface {
-	// Initializes a new user session with the given username and id.
-	NewSession(username string, id uuid.UUID) (string, error)
-	// Gets the session data owned by the given session key
-	GetSessionData(key string) (*SessionData, error)
-	// Sets the session data owned by the given session key
-	SetSessionData(key string, data *SessionData) error
-	// Refreshes the session; invalidates the previous key and generates a new
-	// one pointing to the same session data
-	RefreshSession(key string) (string, error)
-	// Ends the session and invalidates the key.
-	EndSession(key string) error
+type ManagerBackend interface {
+	Set(key string, value *SessionData) error
+	Get(key string) (*SessionData, error)
+	Del(key string) error
 }
 
 func GenerateSessionKey() (string, error) {
@@ -56,4 +48,88 @@ func GenerateCSRFToken() ([]byte, error) {
 	}
 
 	return randomBytes, nil
+}
+
+type Manager struct {
+	ManagerBackend
+}
+
+func (m *Manager) NewSession( username string, id uuid.UUID) (string, error) {
+	key, err := GenerateSessionKey()
+	if err != nil {
+		return "", err
+	}
+
+	csrf, err := GenerateCSRFToken()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		_, err := m.Get(key)
+		if errors.Is(err, ErrSessionNotFound) {
+			break
+		} else if err != nil {
+			return "", err
+		}
+		key, err = GenerateSessionKey()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	m.Set(key, &SessionData{
+		Username:  username,
+		UserID:    id,
+		CsrfToken: csrf,
+		CreatedAt: time.Now(),
+	})
+
+	return key, nil
+}
+
+func (m *Manager) GetSessionData(key string) (*SessionData, error) {
+	return m.Get(key)
+}
+
+func (m *Manager) SetSessionData(key string, value *SessionData) error {
+	_, err := m.Get(key)
+	if err != nil {
+		return err
+	}
+	return m.Set(key, value)
+}
+
+func (m *Manager) RefreshSession(key string) (string, error) {
+	data, err := m.Get(key)
+	if err != nil {
+		return "", err
+	}
+
+	newKey, err := GenerateSessionKey()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		_, err := m.Get(newKey)
+		if errors.Is(err, ErrSessionNotFound) {
+			break
+		} else if err != nil {
+			return "", err
+		}
+		newKey, err = GenerateSessionKey()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	m.Del(key)
+	m.Set(newKey, data)
+
+	return newKey, nil
+}
+
+func (m *Manager) EndSession(key string) error {
+	return m.Del(key)
 }

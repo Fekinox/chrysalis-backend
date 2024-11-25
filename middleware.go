@@ -167,7 +167,7 @@ func HTMXRedirect(dests ...string) gin.HandlerFunc {
 }
 
 // Redirect user to given URL, reusing path params if necessary.
-func RedirectIfNotLoggedIn(sm session.Manager, dests ...string) gin.HandlerFunc {
+func RedirectIfNotLoggedIn(sm *session.Manager, dests ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if _, ok := GetSessionData(c); ok {
 			c.Next()
@@ -178,12 +178,12 @@ func RedirectIfNotLoggedIn(sm session.Manager, dests ...string) gin.HandlerFunc 
 	}
 }
 
-func RedirectToLogin(sm session.Manager) gin.HandlerFunc {
+func RedirectToLogin(sm *session.Manager) gin.HandlerFunc {
 	return RedirectIfNotLoggedIn(sm, "/app/login")
 }
 
 // Reads the session key cookie from the client and adds it to the context
-func SessionKey(sm session.Manager) gin.HandlerFunc {
+func SessionKey(sm *session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionKey, err := c.Request.Cookie("chrysalis-session-key")
 		if err != nil {
@@ -215,7 +215,7 @@ var (
 	GetSessionKey  = contextGetter[string]("sessionKey")
 )
 
-func HasSessionKey(sm session.Manager) gin.HandlerFunc {
+func HasSessionKey(sm *session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, ok := GetSessionData(c)
 		if !ok {
@@ -240,7 +240,7 @@ func GetCSRFToken(r *http.Request) ([]byte, bool) {
 	return decodedHeader, true
 }
 
-func CsrfProtect(sm session.Manager) gin.HandlerFunc {
+func CsrfProtect(sm *session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if slices.Contains(CSRF_SAFE_METHODS, c.Request.Method) {
 			c.Next()

@@ -25,7 +25,7 @@ type ChrysalisServer struct {
 	pool   *pgxpool.Pool
 	store  *db.Store
 
-	sessionManager session.Manager
+	sessionManager *session.Manager
 }
 
 type LoginSchema struct {
