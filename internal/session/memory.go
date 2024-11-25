@@ -8,13 +8,13 @@ import (
 // it only recognizes sessions that connect to the same machine, so this is not
 // ideal for use in production.
 type MemoryBackend struct {
-	mu sync.RWMutex
-	sessions         map[string]*SessionData
+	mu       sync.RWMutex
+	sessions map[string]*SessionData
 }
 
 func NewMemorySessionManager() *Manager {
 	return &Manager{&MemoryBackend{
-		sessions:         make(map[string]*SessionData),
+		sessions: make(map[string]*SessionData),
 	}}
 }
 

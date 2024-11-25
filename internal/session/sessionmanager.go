@@ -54,7 +54,7 @@ type Manager struct {
 	ManagerBackend
 }
 
-func (m *Manager) NewSession( username string, id uuid.UUID) (string, error) {
+func (m *Manager) NewSession(username string, id uuid.UUID) (string, error) {
 	key, err := GenerateSessionKey()
 	if err != nil {
 		return "", err
