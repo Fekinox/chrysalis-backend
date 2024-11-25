@@ -16,6 +16,7 @@
     </div>
     {{end}}
     <form action="/app/login" method="post" style="width: var(--width-card);">
+      {{template "csrffield" .session}}
       <input type="hidden" name="redirect" value={{.redirect}}></input>
       <label for="username">Username</label>
       <input type="text" id="username" name="username" required>

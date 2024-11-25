@@ -1,3 +1,6 @@
 {{define "csrf"}}
   <meta name="csrf-token" content="{{csrftoken .}}">
 {{end}}
+{{define "csrffield"}}
+  <input type=hidden name="csrf-token" value="{{csrftoken .}}">
+{{end}}

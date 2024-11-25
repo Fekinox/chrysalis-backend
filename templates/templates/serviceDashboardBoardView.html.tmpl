@@ -1,6 +1,6 @@
-<div style="display: flex; width:100%">
+<div style="display: flex; width:100%; overflow: scroll;">
   {{range $i, $s := statuses}}
-  <div style="display: flex; flex-direction: column; width: 100%; align-items: center;">
+  <div style="display: flex; min-width: 180px; flex-direction: column; width: 100%; align-items: center;">
     <div style="text-transform: capitalize">{{$s}} ({{index $.taskCounts $s}})</div>
     <div
       data-dashboard-column

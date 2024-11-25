@@ -118,10 +118,7 @@ document.addEventListener('alpine:init', () => {
           })
         });
 
-        console.log(resp)
-        if (resp.redirected) {
-          window.location.replace(resp.url);
-        }
+        window.location.replace(`/app/${username}/services/${service}/dashboard`)
       } catch(e) {
         throw new Error(e)
       }

@@ -164,7 +164,7 @@ document.addEventListener('alpine:init', () => {
       this.fields[fieldIdx].options[optIdx].value = cleanedValue
     },
 
-    async submit() {
+    async submit(username) {
       try {
         resp = await api.post("/app/new-service", {
           "title": this.title,
@@ -205,10 +205,7 @@ document.addEventListener('alpine:init', () => {
           })
         });
 
-        console.log(resp)
-        if (resp.redirected) {
-          window.location.replace(resp.url);
-        }
+        window.location.replace(`/app/${username}/services/${this.slug}/dashboard`)
       } catch(e) {
         throw new Error(e)
       }
@@ -255,10 +252,7 @@ document.addEventListener('alpine:init', () => {
           })
         });
 
-        console.log(resp)
-        if (resp.redirected) {
-          window.location.replace(resp.url);
-        }
+        window.location.replace(`/app/${username}/services/${this.slug}/dashboard`)
       } catch(e) {
         throw new Error(e)
       }

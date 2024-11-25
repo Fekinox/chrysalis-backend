@@ -20,6 +20,7 @@ type MainController struct {
 func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.Use(ErrorHandler(&mc.con.cfg, HTMLErrorRenderer))
 	app.Use(SessionKey(mc.con.sessionManager))
+	app.Use(CsrfProtect(mc.con.sessionManager))
 	app.GET("/helloworld", DummyTemplateHandler)
 	app.GET("/:username/services", mc.GetUserServices)
 
@@ -52,13 +53,11 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.PUT(
 		"/:username/services/:servicename/tasks/:taskname",
 		HasSessionKey(mc.con.sessionManager),
-		CsrfProtect(mc.con.sessionManager),
 		mc.UpdateTask,
 	)
 	app.POST(
 		"/:username/services/:servicename/tasks/swap",
 		HasSessionKey(mc.con.sessionManager),
-		CsrfProtect(mc.con.sessionManager),
 		mc.UpdateTask,
 	)
 
@@ -70,7 +69,6 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.POST(
 		"/:username/services/:servicename/form",
 		RedirectToLogin(mc.con.sessionManager),
-		CsrfProtect(mc.con.sessionManager),
 		mc.CreateTask,
 	)
 
@@ -80,25 +78,21 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	)
 	app.PUT("/:username/services/:servicename",
 		RedirectToLogin(mc.con.sessionManager),
-		CsrfProtect(mc.con.sessionManager),
 		mc.UpdateService,
 	)
 
 	app.GET("/new-service",
 		RedirectToLogin(mc.con.sessionManager),
-		CsrfProtect(mc.con.sessionManager),
 		mc.ServiceCreator,
 	)
 	app.POST("/new-service",
 		HasSessionKey(mc.con.sessionManager),
-		CsrfProtect(mc.con.sessionManager),
 		mc.CreateNewService,
 	)
 	app.GET("/:username/services/:servicename/tasks/:taskname", mc.TaskDetail)
 
 	app.GET("/dashboard",
 		RedirectToLogin(mc.con.sessionManager),
-		CsrfProtect(mc.con.sessionManager),
 		mc.UserDashboard)
 }
 
@@ -140,7 +134,10 @@ func (dc *MainController) GetUserServices(c *gin.Context) {
 			return err
 		}
 
+		session, _ := GetSessionData(c)
+
 		c.HTML(http.StatusOK, "userServices.html.tmpl", gin.H{
+			"session":  session,
 			"user":     user.Username,
 			"services": services,
 		})
@@ -408,9 +405,12 @@ func (mc *MainController) TaskDetail(c *gin.Context) {
 		return
 	}
 
+	session, _ := GetSessionData(c)
+
 	c.HTML(http.StatusOK, "taskDetail.html.tmpl", gin.H{
-		"form": form,
-		"task": task,
+		"session": session,
+		"form":    form,
+		"task":    task,
 		"params": gin.H{
 			"username": serviceCreator,
 			"service":  serviceName,

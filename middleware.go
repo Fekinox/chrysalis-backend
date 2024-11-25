@@ -34,8 +34,9 @@ var (
 
 	TimeoutError = errors.New("Timeout")
 
-	ErrNotLoggedIn = errors.New("Not logged in")
-	ErrForbidden   = errors.New("Forbidden")
+	ErrNotLoggedIn   = errors.New("Not logged in")
+	ErrForbidden     = errors.New("Forbidden")
+	ErrCSRFViolation = errors.New("CSRF Violation- provide CSRF token")
 
 	ErrMissingParam = errors.New("Param does not exist")
 )
@@ -129,7 +130,8 @@ func ErrorHandler(cfg *config.Config, renderer ErrorRenderer) gin.HandlerFunc {
 
 		// Only show detailed errors if either we are in dev mode or if the error is not
 		// an internal error (error code >= 500)
-		if cfg.Environment == "dev" || c.Writer.Status() < 500 {
+		if cfg.Environment == "dev" || (c.Writer.Status() < 500 &&
+			c.Writer.Status() != http.StatusForbidden) {
 			c.JSON(-1, gin.H{"errors": errList})
 		} else {
 			c.JSON(-1, gin.H{"errors": http.StatusText(c.Writer.Status())})
@@ -278,6 +280,24 @@ func GetCSRFTokenInHeaders(r *http.Request) ([]byte, bool) {
 	return decodedHeader, true
 }
 
+// Checks for the CSRF token in the form data, often sent with simple forms.
+func GetCSRFTokenInFormData(r *http.Request) ([]byte, bool) {
+	err := r.ParseForm()
+	if err != nil {
+		return nil, false
+	}
+
+	token := r.FormValue("csrf-token")
+	if token == "" {
+		return nil, false
+	}
+	decodedHeader, err := hex.DecodeString(token)
+	if err != nil {
+		return nil, false
+	}
+	return decodedHeader, true
+}
+
 // Compares the CSRF token sent in the request headers
 func CsrfProtect(sm *session.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -293,12 +313,15 @@ func CsrfProtect(sm *session.Manager) gin.HandlerFunc {
 
 		token, ok := GetCSRFTokenInHeaders(c.Request)
 		if !ok {
-			AbortError(c, http.StatusForbidden, ErrForbidden)
-			return
+			token, ok = GetCSRFTokenInFormData(c.Request)
+			if !ok {
+				AbortError(c, http.StatusForbidden, ErrCSRFViolation)
+				return
+			}
 		}
 
 		if subtle.ConstantTimeCompare(token, session.CsrfToken) == 0 {
-			AbortError(c, http.StatusForbidden, ErrForbidden)
+			AbortError(c, http.StatusForbidden, ErrCSRFViolation)
 			return
 		}
 		c.Next()
@@ -314,7 +337,7 @@ func HasCSRFHeader() gin.HandlerFunc {
 		if slices.Contains(CSRF_SAFE_METHODS, c.Request.Method) || CSRFTokenExists(c.Request) {
 			c.Next()
 		} else {
-			AbortError(c, http.StatusForbidden, ErrForbidden)
+			AbortError(c, http.StatusForbidden, ErrCSRFViolation)
 		}
 	}
 }

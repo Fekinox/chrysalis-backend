@@ -23,6 +23,7 @@ type JSONAPIController struct {
 func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	api.Use(ErrorHandler(&jc.con.cfg, JSONErrorRenderer))
 	api.Use(SessionKey(jc.con.sessionManager))
+	api.Use(HasCSRFHeader())
 
 	auth := api.Group("/auth")
 	auth.POST("/login", jc.Login)
@@ -31,7 +32,6 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	auth.POST("/csrf", jc.CSRFToken)
 
 	users := api.Group("/users")
-	users.Use(CsrfProtect(jc.con.sessionManager))
 	// Get all services a user owns
 	users.GET("/:username/services", jc.GetUserServices)
 	users.GET("/:username/services/:servicename", jc.GetServiceBySlug)
