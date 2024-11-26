@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/Fekinox/chrysalis-backend/internal/db"
 	"github.com/Fekinox/chrysalis-backend/internal/formfield"
@@ -48,10 +47,6 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	users.GET("/:username/services/:servicename/tasks", jc.GetTasksForService)
 	users.GET("/:username/services/:servicename/tasks/:taskslug", jc.GetDetailedTaskInformation)
 	users.POST("/:username/services/:servicename/tasks", jc.CreateTaskForService)
-	users.PUT("/:username/services/:servicename/tasks/:taskslug", jc.UpdateTask)
-	users.POST("/:username/services/:servicename/swap", jc.SwapTasks)
-	users.POST("/:username/services/:servicename/swap-idx", jc.SwapTasksStatusAndIndex)
-	users.POST("/:username/services/:servicename/move", jc.MoveTask)
 	users.POST("/:username/services/:servicename/update", jc.UpdateTasksBulk)
 }
 
@@ -539,117 +534,6 @@ func (jc *JSONAPIController) CreateTaskForService(c *gin.Context) {
 			serviceSlug,
 			task.TaskSlug),
 	)
-}
-
-// Update the status of a task as the owner of a service
-func (jc *JSONAPIController) UpdateTask(c *gin.Context) {
-	serviceCreator := c.Param("username")
-	serviceSlug := c.Param("servicename")
-	taskSlug := c.Param("taskslug")
-
-	err := models.UpdateTaskStatus(c.Request.Context(), jc.con.store, models.UpdateTaskParams{
-		CreatorUsername: serviceCreator,
-		ServiceName:     serviceSlug,
-		TaskName:        taskSlug,
-		Status:          db.TaskStatus(c.Query("status")),
-	})
-	if errors.Is(err, models.ErrTaskNotFound) {
-		AbortError(c, http.StatusNotFound, fmt.Errorf("%w: %v", ErrNotFound, serviceCreator))
-		return
-	} else if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	c.Redirect(http.StatusSeeOther,
-		fmt.Sprintf(
-			"/api/users/%s/services/%s/tasks/%s",
-			serviceCreator,
-			serviceSlug,
-			taskSlug,
-		),
-	)
-}
-
-// Update the status of a task as the owner of a service
-func (jc *JSONAPIController) SwapTasks(c *gin.Context) {
-	serviceCreator := c.Param("username")
-	serviceSlug := c.Param("servicename")
-
-	task1 := c.Query("task1")
-	task2 := c.Query("task2")
-
-	err := models.SwapTasks(c.Request.Context(), jc.con.store, models.SwapTasksParams{
-		CreatorUsername: serviceCreator,
-		ServiceName:     serviceSlug,
-		Task1Name:       task1,
-		Task2Name:       task2,
-	})
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// Update the status of a task as the owner of a service
-func (jc *JSONAPIController) SwapTasksStatusAndIndex(c *gin.Context) {
-	task1, err := strconv.Atoi(c.Query("task1"))
-	if err != nil {
-		AbortError(c, http.StatusBadRequest, errors.New("task1 must be an integer"))
-		return
-	}
-	task2, err := strconv.Atoi(c.Query("task2"))
-	if err != nil {
-		AbortError(c, http.StatusBadRequest, errors.New("task2 must be an integer"))
-		return
-	}
-
-	err = models.SwapTasksByStatusAndId(
-		c.Request.Context(),
-		jc.con.store,
-		models.SwapTasksByStatusAndIdParams{
-			CreatorUsername: c.Param("username"),
-			ServiceName:     c.Param("servicename"),
-			Status:          db.TaskStatus(c.Query("status")),
-			Task1Index:      task1,
-			Task2Index:      task2,
-		},
-	)
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// Update the status of a task as the owner of a service
-func (jc *JSONAPIController) MoveTask(c *gin.Context) {
-	srcIndex, err := strconv.Atoi(c.Query("srcIndex"))
-	if err != nil {
-		AbortError(c, http.StatusBadRequest, errors.New("srcIndex must be an integer"))
-		return
-	}
-	dstIndex, err := strconv.Atoi(c.Query("dstIndex"))
-	if err != nil {
-		AbortError(c, http.StatusBadRequest, errors.New("dstIndex must be an integer"))
-		return
-	}
-
-	err = models.MoveTask(c.Request.Context(), jc.con.store, models.MoveTaskParams{
-		CreatorUsername: c.Param("username"),
-		ServiceName:     c.Param("servicename"),
-		OldStatus:       db.TaskStatus(models.Dehyphenize(c.Query("srcStatus"))),
-		NewStatus:       db.TaskStatus(models.Dehyphenize(c.Query("dstStatus"))),
-		OldIndex:        srcIndex,
-		NewIndex:        dstIndex,
-	})
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
 }
 
 func (jc *JSONAPIController) UpdateTasksBulk(c *gin.Context) {

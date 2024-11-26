@@ -50,17 +50,6 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 		HTMXRedirect("/app/:username/services/:servicename/dashboard"),
 		mc.ServiceDashboardBoardColumn)
 
-	app.PUT(
-		"/:username/services/:servicename/tasks/:taskname",
-		HasSessionKey(mc.con.sessionManager),
-		mc.UpdateTask,
-	)
-	app.POST(
-		"/:username/services/:servicename/tasks/swap",
-		HasSessionKey(mc.con.sessionManager),
-		mc.UpdateTask,
-	)
-
 	app.GET(
 		"/:username/services/:servicename/form",
 		RedirectToLogin(mc.con.sessionManager),
