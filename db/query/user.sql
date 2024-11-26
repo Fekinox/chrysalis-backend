@@ -1,31 +1,25 @@
 -- name: CreateUser :one
-INSERT INTO users (
-    username,
-    password
-) VALUES (
-    sqlc.arg('username'),
-    sqlc.arg('password')
-) RETURNING
-    id,
-    username,
-    password;
+INSERT INTO users (username, PASSWORD)
+  VALUES (sqlc.arg ('username'), sqlc.arg ('password'))
+RETURNING
+  id, username, PASSWORD;
 
 -- name: GetUserByUUID :one
 SELECT
-    id,
-    username,
-    password
+  id,
+  username,
+  PASSWORD
 FROM
-    users
+  users
 WHERE
-    id = sqlc.arg('id');
+  id = sqlc.arg ('id');
 
 -- name: GetUserByUsername :one
 SELECT
-    id,
-    username,
-    password
+  id,
+  username,
+  PASSWORD
 FROM
-    users
+  users
 WHERE
-    username = sqlc.arg('username');
+  username = sqlc.arg ('username');
