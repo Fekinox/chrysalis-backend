@@ -52,6 +52,7 @@ func (jc *JSONAPIController) MountTo(path string, api gin.IRouter) {
 	users.POST("/:username/services/:servicename/swap", jc.SwapTasks)
 	users.POST("/:username/services/:servicename/swap-idx", jc.SwapTasksStatusAndIndex)
 	users.POST("/:username/services/:servicename/move", jc.MoveTask)
+	users.POST("/:username/services/:servicename/update", jc.UpdateTasksBulk)
 }
 
 func NewJSONAPIController(c *ChrysalisServer) (*JSONAPIController, error) {
@@ -649,4 +650,31 @@ func (jc *JSONAPIController) MoveTask(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (jc *JSONAPIController) UpdateTasksBulk(c *gin.Context) {
+	var spec []models.TaskUpdateSpec
+	if err := c.ShouldBindJSON(&spec); err != nil {
+		AbortError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	params := models.UpdateTaskStatusesBulkParams{
+		CreatorUsername: c.Param("username"),
+		ServiceName:     c.Param("servicename"),
+		Updates:         spec,
+	}
+
+	var results []models.UpdateTaskStatusesResult
+	var err error
+	if results, err = models.UpdateTaskStatusesBulk(c.Request.Context(), jc.con.store, params); err != nil {
+		if errors.Is(err, models.ErrTaskUpdateDiscrepancies) {
+			AbortError(c, http.StatusBadRequest, err)
+			return
+		}
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
 }

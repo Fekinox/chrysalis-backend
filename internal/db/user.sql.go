@@ -12,16 +12,10 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (
-    username,
-    password
-) VALUES (
-    $1,
-    $2
-) RETURNING
-    id,
-    username,
-    password
+INSERT INTO users (username, PASSWORD)
+  VALUES ($1, $2)
+RETURNING
+  id, username, PASSWORD
 `
 
 type CreateUserParams struct {
@@ -38,13 +32,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*User, 
 
 const getUserByUUID = `-- name: GetUserByUUID :one
 SELECT
-    id,
-    username,
-    password
+  id,
+  username,
+  PASSWORD
 FROM
-    users
+  users
 WHERE
-    id = $1
+  id = $1
 `
 
 func (q *Queries) GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error) {
@@ -56,13 +50,13 @@ func (q *Queries) GetUserByUUID(ctx context.Context, id uuid.UUID) (*User, error
 
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT
-    id,
-    username,
-    password
+  id,
+  username,
+  PASSWORD
 FROM
-    users
+  users
 WHERE
-    username = $1
+  username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (*User, error) {

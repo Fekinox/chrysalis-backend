@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	ErrTooManyRetryAttempts = errors.New("Too many retry attempts")
-	ErrFailedValidation     = errors.New("Failed form validation")
-	ErrTaskNotFound         = errors.New("Task not found")
+	ErrTooManyRetryAttempts    = errors.New("Too many retry attempts")
+	ErrFailedValidation        = errors.New("Failed form validation")
+	ErrTaskNotFound            = errors.New("Task not found")
+	ErrTaskUpdateDiscrepancies = errors.New("Found task discrepancies")
 )
 
 const MAX_TASK_RETRY_ATTEMPTS int = 10
@@ -108,6 +109,23 @@ type MoveTaskParams struct {
 	NewStatus       db.TaskStatus
 	OldIndex        int
 	NewIndex        int
+}
+
+type UpdateTaskStatusesBulkParams struct {
+	CreatorUsername string           `json:"username"`
+	ServiceName     string           `json:"service"`
+	Updates         []TaskUpdateSpec `json:"updates"`
+}
+
+type UpdateTaskStatusesResult struct {
+	TaskIdentifier string `json:"task"`
+	Result         string `json:"result"`
+}
+
+type TaskUpdateSpec struct {
+	TaskIdentifier string        `json:"task"`
+	NewIndex       int           `json:"new_index"`
+	NewStatus      db.TaskStatus `json:"new_status"`
 }
 
 func CreateTask(
@@ -477,4 +495,86 @@ func GetTaskCounts(
 	}
 
 	return taskCounts, nil
+}
+
+func UpdateTaskStatusesBulk(
+	ctx context.Context,
+	d *db.Store,
+	p UpdateTaskStatusesBulkParams,
+) ([]UpdateTaskStatusesResult, error) {
+	resultList := make([]UpdateTaskStatusesResult, 0)
+	err := d.BeginFunc(ctx, func(s *db.Store) error {
+		for _, u := range p.Updates {
+			header, err := s.GetTaskHeader(ctx, db.GetTaskHeaderParams{
+				Username: p.CreatorUsername,
+				FormSlug: p.ServiceName,
+				TaskSlug: u.TaskIdentifier,
+			})
+			if err != nil {
+				return nil
+			}
+
+			// Skip update if it would render the task unchanged
+			if header.Idx == int32(u.NewIndex) && header.Status == u.NewStatus {
+				resultList = append(resultList, UpdateTaskStatusesResult{
+					TaskIdentifier: u.TaskIdentifier,
+					Result:         "No change",
+				})
+				continue
+			}
+			fmt.Println(header)
+
+			err = s.UpdatePositionAndStatus(ctx, db.UpdatePositionAndStatusParams{
+				ID:     header.ID,
+				Idx:    int32(u.NewIndex),
+				Status: u.NewStatus,
+			})
+			if err != nil {
+				return err
+			}
+
+			_, err = s.CreateUpdate(ctx, db.CreateUpdateParams{
+				TaskID:      header.ID,
+				OldPosition: header.Idx,
+				NewPosition: int32(u.NewIndex),
+				OldStatus:   header.Status,
+				NewStatus:   u.NewStatus,
+			})
+			if err != nil {
+				return err
+			}
+
+			resultList = append(resultList, UpdateTaskStatusesResult{
+				TaskIdentifier: u.TaskIdentifier,
+				Result: fmt.Sprintf(
+					"New index: %v, New position: %v",
+					u.NewIndex,
+					u.NewStatus,
+				),
+			})
+		}
+
+		discrepancies, err := s.FindDiscrepancies(ctx, db.FindDiscrepanciesParams{
+			CreatorUsername: p.CreatorUsername,
+			ServiceName:     p.ServiceName,
+		})
+		if err != nil {
+			return err
+		} else if len(discrepancies) > 0 {
+			errorList := make([]error, 0)
+			for _, d := range discrepancies {
+				errorList = append(errorList, fmt.Errorf("Task %v: Expected position: %v Actual position: %v",
+					d.TaskName, d.ExpectedIdx, d.ActualIndex))
+			}
+
+			return fmt.Errorf("%w: %v", ErrTaskUpdateDiscrepancies, errors.Join(errorList...))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return resultList, nil
 }

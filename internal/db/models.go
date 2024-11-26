@@ -182,6 +182,17 @@ type TaskState struct {
 	Status TaskStatus `json:"status"`
 }
 
+type TaskUpdate struct {
+	ID           int64              `json:"id"`
+	TaskID       int64              `json:"task_id"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	OldPosition  int32              `json:"old_position"`
+	OldStatus    TaskStatus         `json:"old_status"`
+	NewPosition  int32              `json:"new_position"`
+	NewStatus    TaskStatus         `json:"new_status"`
+	Acknowledged bool               `json:"acknowledged"`
+}
+
 type TextField struct {
 	FormVersionID int64 `json:"form_version_id"`
 	Idx           int64 `json:"idx"`

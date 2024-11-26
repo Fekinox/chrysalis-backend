@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS task_updates (
   old_status task_status NOT NULL,
   new_position integer NOT NULL,
   new_status task_status NOT NULL,
+  acknowledged boolean NOT NULL DEFAULT FALSE,
   CONSTRAINT fk_task_id FOREIGN KEY (task_id) REFERENCES tasks ON DELETE
     CASCADE ON UPDATE CASCADE
 );

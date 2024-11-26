@@ -178,6 +178,68 @@ func (q *Queries) CreateTaskState(ctx context.Context, taskID int64) (*TaskState
 	return &i, err
 }
 
+const findDiscrepancies = `-- name: FindDiscrepancies :many
+SELECT
+  task_states.task_id,
+  tasks.task_name,
+  task_states.idx AS actual_index,
+  expected_indices.idx AS expected_idx
+FROM
+  task_states
+  INNER JOIN (
+  SELECT
+    task_id,
+    (row_number() OVER (PARTITION BY status ORDER BY idx ASC) - 1) as idx
+  FROM
+    task_states
+  ) AS expected_indices ON expected_indices.task_id = task_states.task_id
+  INNER JOIN tasks ON expected_indices.task_id = tasks.id
+  INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
+  INNER JOIN forms ON forms.id = form_versions.form_id
+  INNER JOIN users AS creators ON creators.id = forms.creator_id
+WHERE
+  creators.username = $1 AND
+  forms.slug = $2 AND
+  task_states.idx <> expected_indices.idx
+`
+
+type FindDiscrepanciesParams struct {
+	CreatorUsername string `json:"creator_username"`
+	ServiceName     string `json:"service_name"`
+}
+
+type FindDiscrepanciesRow struct {
+	TaskID      int64  `json:"task_id"`
+	TaskName    string `json:"task_name"`
+	ActualIndex int32  `json:"actual_index"`
+	ExpectedIdx int64  `json:"expected_idx"`
+}
+
+func (q *Queries) FindDiscrepancies(ctx context.Context, arg FindDiscrepanciesParams) ([]*FindDiscrepanciesRow, error) {
+	rows, err := q.db.Query(ctx, findDiscrepancies, arg.CreatorUsername, arg.ServiceName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*FindDiscrepanciesRow
+	for rows.Next() {
+		var i FindDiscrepanciesRow
+		if err := rows.Scan(
+			&i.TaskID,
+			&i.TaskName,
+			&i.ActualIndex,
+			&i.ExpectedIdx,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFilledFormFields = `-- name: GetFilledFormFields :many
 SELECT
   ffs.ftype,
@@ -829,6 +891,23 @@ type SwapTasksParams struct {
 
 func (q *Queries) SwapTasks(ctx context.Context, arg SwapTasksParams) error {
 	_, err := q.db.Exec(ctx, swapTasks, arg.TaskID1, arg.TaskID2)
+	return err
+}
+
+const updatePositionAndStatus = `-- name: UpdatePositionAndStatus :exec
+UPDATE task_states
+  SET idx = $1, status = $2
+  WHERE task_id = $3
+`
+
+type UpdatePositionAndStatusParams struct {
+	Idx    int32      `json:"idx"`
+	Status TaskStatus `json:"status"`
+	ID     int64      `json:"id"`
+}
+
+func (q *Queries) UpdatePositionAndStatus(ctx context.Context, arg UpdatePositionAndStatusParams) error {
+	_, err := q.db.Exec(ctx, updatePositionAndStatus, arg.Idx, arg.Status, arg.ID)
 	return err
 }
 
