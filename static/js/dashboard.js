@@ -54,29 +54,72 @@ function attachSortable(username, service) {
   }));
 }
 
-function attachColumnSortable(username, service, status) {
-  column = document.querySelector(`#dashboardcontent [data-dashboard-column][data-status=${status}]`)
-  NewSortable(`columns-${column.dataset.status}`, Sortable.create(column, {
-    animation: 150,
-    group: 'columns',
-    onEnd: async (ev) => {
-      console.log({
-        to: ev.to.dataset.status,
-        from: ev.from.dataset.status,
-        oldIndex: ev.oldIndex,
-        newIndex: ev.newIndex,
-      })
+document.addEventListener('alpine:init', () => {
+  console.log('initting')
+  Alpine.data('board', () => ({
+    updates: [],
 
-      params = new URLSearchParams({
-        srcStatus: ev.from.dataset.status,
-        srcIndex: ev.oldIndex,
-        dstStatus: ev.to.dataset.status,
-        dstIndex: ev.newIndex
-      })
-      await api.post(`/api/users/${username}/services/${service}/move?${params}`);
+    constructor() {
+      console.log('hi')
+    },
 
-      refreshColumn(ev.to.dataset.status)
-      refreshColumn(ev.from.dataset.status)
+    reset() {
+      this.updates = []
+      document.querySelectorAll('#dashboardcontent [data-dashboard-column]').forEach((col) => {
+        col.dispatchEvent(new Event('refresh'))
+      })
+    },
+
+    async commit(username, service) {
+      await api.post(`/api/users/${username}/services/${service}/update`, 
+        this.updates.map((update) => ({
+          "task": update["task_identifier"],
+          "new_index": update["new_index"],
+          "new_status": update["new_status"]
+        }))
+      );
+      this.reset()
+    },
+
+    attachColumnSortable(username, service, status) {
+      column = document.querySelector(`#dashboardcontent [data-dashboard-column][data-status=${status}]`)
+      NewSortable(`columns-${column.dataset.status}`, Sortable.create(column, {
+        animation: 150,
+        group: 'columns',
+        onEnd: async (ev) => {
+          console.log({
+            to: ev.to.dataset.status,
+            from: ev.from.dataset.status,
+            oldIndex: ev.oldIndex,
+            newIndex: ev.newIndex,
+          })
+
+          this.checkUpdates()
+        }
+      }));
+    },
+
+    checkUpdates() {
+      this.updates = []
+      cols = document.querySelectorAll('#dashboardcontent [data-dashboard-column]');
+      for (col of cols) {
+        tasks = col.querySelectorAll('[data-task]')
+        for (let i = 0; i < tasks.length; i++) {
+          task = tasks[i]
+          if (task.dataset.taskStatus == col.dataset.status && Number(task.dataset.taskIdx) == i) {
+            continue
+          }
+          this.updates.push({
+            'task_identifier': task.dataset.taskIdentifier,
+            'old_status': task.dataset.taskStatus,
+            'old_index': Number(task.dataset.taskIdx),
+            'new_status': col.dataset.status,
+            'new_index': i,
+          })
+        }
+      }
+
+      console.log(this.updates)
     }
-  }))
-}
+  }));
+});

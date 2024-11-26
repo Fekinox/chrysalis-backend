@@ -3,7 +3,11 @@
     margin: 0.4em 0em;
     padding: 0.4em;
     border: 2px solid var(--color-link);
-    border-radius: var(--border-radius);">
+    border-radius: var(--border-radius);"
+    data-task
+    data-task-identifier="{{$t.Slug}}"
+    data-task-status="{{$t.Status}}"
+    data-task-idx="{{$t.Idx}}">
     <h4>
       <a href="/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/{{$t.Slug}}">
         {{$t.TaskName}}

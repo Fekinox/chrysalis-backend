@@ -514,6 +514,8 @@ func UpdateTaskStatusesBulk(
 				return nil
 			}
 
+			newStatus := db.TaskStatus(Hyphenize(string(u.NewStatus)))
+
 			// Skip update if it would render the task unchanged
 			if header.Idx == int32(u.NewIndex) && header.Status == u.NewStatus {
 				resultList = append(resultList, UpdateTaskStatusesResult{
@@ -527,7 +529,7 @@ func UpdateTaskStatusesBulk(
 			err = s.UpdatePositionAndStatus(ctx, db.UpdatePositionAndStatusParams{
 				ID:     header.ID,
 				Idx:    int32(u.NewIndex),
-				Status: u.NewStatus,
+				Status: newStatus,
 			})
 			if err != nil {
 				return err
@@ -538,7 +540,7 @@ func UpdateTaskStatusesBulk(
 				OldPosition: header.Idx,
 				NewPosition: int32(u.NewIndex),
 				OldStatus:   header.Status,
-				NewStatus:   u.NewStatus,
+				NewStatus:   newStatus,
 			})
 			if err != nil {
 				return err
@@ -549,7 +551,7 @@ func UpdateTaskStatusesBulk(
 				Result: fmt.Sprintf(
 					"New index: %v, New position: %v",
 					u.NewIndex,
-					u.NewStatus,
+					newStatus,
 				),
 			})
 		}

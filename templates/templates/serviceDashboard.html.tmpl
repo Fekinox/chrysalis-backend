@@ -12,7 +12,7 @@
       color: var(--color-bg);
     }
   </style>
-  <script defer src="/static/js/dashboard.js"></script>
+  <script src="/static/js/dashboard.js"></script>
 {{end}}
 {{define "header"}}
   <h1>{{.service.Name}} Dashboard</h1>
@@ -43,27 +43,11 @@
       hx-on::after-on-load="setHighlight(event.target)"
     {{end}}
     hx-target="#dashboardcontent">
-    <button
-      hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/tabs/pending"
-      hx-trigger="click, refresh"
-      role="tab"
-      aria-controls="dashboardcontent"
-      aria-selected="true"
-      data-tab="tabs"
-    >Tabs</button>
-    <button
-      hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/board"
-      hx-trigger="click, refresh"
-      role="tab"
-      aria-controls="dashboardcontent"
-      aria-selected="false"
-      data-tab="board"
-    >Kanban</button>
   </div>
   <section
     id="dashboardcontent"
-    hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/tabs/pending"
-    hx-trigger="load"
+    hx-get="/app/{{$.params.username}}/services/{{$.params.servicename}}/dashboard/board"
+    hx-trigger="load, refresh"
     style="display: flex; flex-direction: column">
   </section>
 {{end}}
