@@ -83,6 +83,14 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.GET("/dashboard",
 		RedirectToLogin(mc.con.sessionManager),
 		mc.UserDashboard)
+
+	app.GET("/dashboard/your-task-updates",
+		HTMXRedirect("/app/dashboard"),
+		mc.YourTaskUpdates)
+
+	app.GET("/:username/services/:servicename/dashboard/your-task-updates",
+		HTMXRedirect("/app/:username/services/:servicename/dashboard"),
+		mc.YourTaskUpdates)
 }
 
 func NewMainController(c *ChrysalisServer) (*MainController, error) {
@@ -147,6 +155,9 @@ func (mc *MainController) UserDashboard(c *gin.Context) {
 		"session":  sessionData,
 		"services": services,
 	})
+}
+
+func (mc *MainController) YourTaskUpdates(c *gin.Context) {
 }
 
 func (mc *MainController) ServiceDashboard(c *gin.Context) {
