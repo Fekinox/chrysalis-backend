@@ -102,3 +102,20 @@ SET
   acknowledged = TRUE
 WHERE
   task_updates.task_id = sqlc.arg ('task_id');
+
+-- name: AcknowledgeAllUpdatesForUserOnService :exec
+UPDATE
+  task_updates
+SET
+  acknowledged = TRUE
+FROM
+  tasks
+  INNER JOIN users AS clients ON clients.id = tasks.client_id
+  INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
+  INNER JOIN forms ON forms.id = form_versions.form_id
+  INNER JOIN users AS creators ON creators.id = forms.creator_id
+WHERE
+  clients.username = sqlc.arg ('client_username')
+  AND creators.username = sqlc.arg ('creator_username')
+  AND forms.slug = sqlc.arg ('service_name')
+  AND task_updates.task_id = tasks.id;

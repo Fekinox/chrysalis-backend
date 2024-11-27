@@ -43,6 +43,35 @@ func (q *Queries) AcknowledgeAllUpdatesForUser(ctx context.Context, username str
 	return err
 }
 
+const acknowledgeAllUpdatesForUserOnService = `-- name: AcknowledgeAllUpdatesForUserOnService :exec
+UPDATE
+  task_updates
+SET
+  acknowledged = TRUE
+FROM
+  tasks
+  INNER JOIN users AS clients ON clients.id = tasks.client_id
+  INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
+  INNER JOIN forms ON forms.id = form_versions.form_id
+  INNER JOIN users AS creators ON creators.id = forms.creator_id
+WHERE
+  clients.username = $1
+  AND creators.username = $2
+  AND forms.slug = $3
+  AND task_updates.task_id = tasks.id
+`
+
+type AcknowledgeAllUpdatesForUserOnServiceParams struct {
+	ClientUsername  string `json:"client_username"`
+	CreatorUsername string `json:"creator_username"`
+	ServiceName     string `json:"service_name"`
+}
+
+func (q *Queries) AcknowledgeAllUpdatesForUserOnService(ctx context.Context, arg AcknowledgeAllUpdatesForUserOnServiceParams) error {
+	_, err := q.db.Exec(ctx, acknowledgeAllUpdatesForUserOnService, arg.ClientUsername, arg.CreatorUsername, arg.ServiceName)
+	return err
+}
+
 const acknowledgeUpdate = `-- name: AcknowledgeUpdate :exec
 UPDATE
   task_updates

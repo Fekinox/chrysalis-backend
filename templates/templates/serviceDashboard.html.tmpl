@@ -12,6 +12,7 @@
       color: var(--color-bg);
     }
   </style>
+  <script src="/static/js/taskupdate.js"></script>
   <script src="/static/js/dashboard.js"></script>
 {{end}}
 {{define "header"}}
@@ -26,6 +27,9 @@
       {{end}}
     {{end}}
     <a href="/app/{{.params.username}}/services/{{.params.servicename}}/form">Create Task</a>
+  </div>
+  <div hx-get="/app/{{.params.username}}/services/{{.params.servicename}}/dashboard/your-task-updates"
+    hx-trigger="load">
   </div>
   <h2>Tasks</h2>
   <hr>

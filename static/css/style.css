@@ -1,5 +1,5 @@
 .update_card {
-    min-width: var(--width-card);
+    width: var(--width-card);
     margin: 0.4em;
     padding: 0.4em;
     border: 2px solid var(--color-link);

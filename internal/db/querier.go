@@ -14,6 +14,7 @@ import (
 type Querier interface {
 	AcknowledgeAllUpdatesForTask(ctx context.Context, taskID int64) error
 	AcknowledgeAllUpdatesForUser(ctx context.Context, username string) error
+	AcknowledgeAllUpdatesForUserOnService(ctx context.Context, arg AcknowledgeAllUpdatesForUserOnServiceParams) error
 	AcknowledgeUpdate(ctx context.Context, taskUpdateID int64) error
 	AddCheckboxFieldToForm(ctx context.Context, arg AddCheckboxFieldToFormParams) (*CheckboxField, error)
 	AddCheckboxFieldToTask(ctx context.Context, arg AddCheckboxFieldToTaskParams) (*FilledCheckboxField, error)

@@ -94,7 +94,9 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 
 	app.GET("/:username/services/:servicename/dashboard/your-task-updates",
 		HTMXRedirect("/app/:username/services/:servicename/dashboard"),
-		mc.YourTaskUpdates)
+		mc.YourTaskUpdatesOnService)
+	app.POST("/dashboard/mark-as-read-on-service",
+		mc.MarkTaskUpdatesAsReadOnService)
 }
 
 func NewMainController(c *ChrysalisServer) (*MainController, error) {
@@ -210,6 +212,66 @@ func (mc *MainController) YourTaskUpdates(c *gin.Context) {
 	})
 }
 
+func (mc *MainController) YourTaskUpdatesOnService(c *gin.Context) {
+	sessionData, _ := GetSessionData(c)
+
+	updates, err := mc.con.store.AllNewUpdatesForUserOnService(
+		c.Request.Context(),
+		db.AllNewUpdatesForUserOnServiceParams{
+			CreatorUsername: c.Param("username"),
+			ServiceName:     c.Param("servicename"),
+			ClientUsername:  sessionData.Username,
+		},
+	)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if len(updates) == 0 {
+		c.Status(http.StatusNoContent)
+		return
+	}
+
+	type key struct {
+		CreatorUsername   string
+		ServiceIdentifier string
+		TaskIdentifier    string
+	}
+
+	type value struct {
+		TaskName string
+		Updates  []*db.AllNewUpdatesForUserOnServiceRow
+	}
+
+	updateGroups := make(map[key]*value)
+	for _, update := range updates {
+		k := key{
+			CreatorUsername:   update.FormCreator,
+			ServiceIdentifier: update.FormIdentifier,
+			TaskIdentifier:    update.TaskIdentifier,
+		}
+		g, ok := updateGroups[k]
+		if !ok {
+			updateGroups[k] = &value{
+				TaskName: update.TaskName,
+				Updates:  []*db.AllNewUpdatesForUserOnServiceRow{update},
+			}
+		} else {
+			g.Updates = append(g.Updates, update)
+		}
+	}
+
+	c.HTML(http.StatusOK, "yourTaskUpdatesOnService.html.tmpl", gin.H{
+		"session": sessionData,
+		"updates": updateGroups,
+		"params": gin.H{
+			"username":    c.Param("username"),
+			"servicename": c.Param("servicename"),
+		},
+	})
+}
+
 func (mc *MainController) MarkTaskUpdatesAsRead(c *gin.Context) {
 	sessionData, ok := GetSessionData(c)
 	if !ok || !sessionData.LoggedIn {
@@ -229,27 +291,32 @@ func (mc *MainController) MarkTaskUpdatesAsRead(c *gin.Context) {
 		return
 	}
 
-	task, err := mc.con.store.GetTaskHeader(c.Request.Context(), db.GetTaskHeaderParams{
-		Username: params.Username,
-		FormSlug: params.Service,
-		TaskSlug: params.Task,
+	_ = mc.con.store.BeginFunc(c.Request.Context(), func(s *db.Store) error {
+		task, err := mc.con.store.GetTaskHeader(c.Request.Context(), db.GetTaskHeaderParams{
+			Username: params.Username,
+			FormSlug: params.Service,
+			TaskSlug: params.Task,
+		})
+		if err != nil {
+			AbortError(c, http.StatusInternalServerError, err)
+			return err
+		}
+		if task.ClientID != sessionData.UserID {
+			AbortError(c, http.StatusForbidden, ErrForbidden)
+			return err
+		}
+
+		err = mc.con.store.AcknowledgeAllUpdatesForTask(c.Request.Context(), task.ID)
+		if err != nil {
+			AbortError(c, http.StatusInternalServerError, err)
+			return err
+		}
+
+		c.Status(http.StatusNoContent)
+
+		return nil
 	})
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	}
-	if task.ClientID != sessionData.UserID {
-		AbortError(c, http.StatusForbidden, ErrForbidden)
-		return
-	}
 
-	err = mc.con.store.AcknowledgeAllUpdatesForTask(c.Request.Context(), task.ID)
-	if err != nil {
-		AbortError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
 }
 
 func (mc *MainController) MarkAllTaskUpdatesAsRead(c *gin.Context) {
@@ -260,6 +327,39 @@ func (mc *MainController) MarkAllTaskUpdatesAsRead(c *gin.Context) {
 	}
 
 	err := mc.con.store.AcknowledgeAllUpdatesForUser(c.Request.Context(), sessionData.Username)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (mc *MainController) MarkTaskUpdatesAsReadOnService(c *gin.Context) {
+	sessionData, ok := GetSessionData(c)
+	if !ok || !sessionData.LoggedIn {
+		AbortError(c, http.StatusUnauthorized, ErrNotLoggedIn)
+		return
+	}
+
+	var params struct {
+		Username string `json:"username"`
+		Service  string `json:"service"`
+	}
+	err := c.ShouldBindJSON(&params)
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	err = mc.con.store.AcknowledgeAllUpdatesForUserOnService(
+		c.Request.Context(),
+		db.AcknowledgeAllUpdatesForUserOnServiceParams{
+			ClientUsername:  sessionData.Username,
+			CreatorUsername: params.Username,
+			ServiceName:     params.Service,
+		},
+	)
 	if err != nil {
 		AbortError(c, http.StatusInternalServerError, err)
 		return

@@ -23,5 +23,9 @@ async function markAllAsRead() {
 }
 
 async function markAllAsReadOnService(username, service) {
+  await api.post('/app/dashboard/mark-as-read-on-service', {
+    username: username,
+    service: service,
+  });
   document.querySelectorAll('[data-task-update]').forEach(readElement)
 }

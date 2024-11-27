@@ -1,0 +1,37 @@
+<h2>Updates</h2>
+<button onclick="markAllAsReadOnService({{$.params.username}}, {{$.params.servicename}})">Acknowledge All</button>
+<div style="display: flex; overflow: scroll;">
+  {{range $k, $updateGroup := .updates}}
+    <div 
+      data-task-update
+      data-creator="{{$.params.username}}"
+      data-service="{{$.params.servicename}}"
+      data-task="{{$k.TaskIdentifier}}"
+      class="update_card">
+      <h4>
+        <a
+          style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis" 
+          href="/app/{{$.params.username}}/services/{{$.params.servicename}}/tasks/{{$k.TaskIdentifier}}">
+          {{$updateGroup.TaskName}}
+        </a>
+      </h4>
+      <ul style="
+        height: 100px;
+        overflow: scroll;
+      ">
+        {{range $i, $update := $updateGroup.Updates}}
+          <li>
+            {{if eq .OldStatus .NewStatus}}
+              Moved from position <b>{{.OldPosition}}</b> to position <b>{{.NewPosition}}</b>
+            {{else}}
+              Updated status to <b style="text-transform: capitalize">{{.NewStatus}}</b> and moved to position <b>{{.NewPosition}}</b>
+            {{end}}
+          </li>
+        {{end}}
+      </ul>
+      <div style="display: flex; justify-content: end">
+        <button onclick="markAsRead('{{$.params.username}}', '{{$.params.servicename}}', '{{$k.TaskIdentifier}}')">Read</button>
+      </div>
+    </div>
+  {{end}}
+</div>
