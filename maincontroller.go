@@ -87,6 +87,10 @@ func (mc *MainController) MountTo(path string, app gin.IRouter) {
 	app.GET("/dashboard/your-task-updates",
 		HTMXRedirect("/app/dashboard"),
 		mc.YourTaskUpdates)
+	app.POST("/dashboard/mark-as-read",
+		mc.MarkTaskUpdatesAsRead)
+	app.POST("/dashboard/mark-all-as-read",
+		mc.MarkAllTaskUpdatesAsRead)
 
 	app.GET("/:username/services/:servicename/dashboard/your-task-updates",
 		HTMXRedirect("/app/:username/services/:servicename/dashboard"),
@@ -158,6 +162,110 @@ func (mc *MainController) UserDashboard(c *gin.Context) {
 }
 
 func (mc *MainController) YourTaskUpdates(c *gin.Context) {
+	sessionData, _ := GetSessionData(c)
+
+	updates, err := mc.con.store.AllNewUpdatesForUser(c.Request.Context(), sessionData.Username)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if len(updates) == 0 {
+		c.Status(http.StatusNoContent)
+		return
+	}
+
+	type key struct {
+		CreatorUsername   string
+		ServiceIdentifier string
+		TaskIdentifier    string
+	}
+
+	type value struct {
+		TaskName string
+		Updates  []*db.AllNewUpdatesForUserRow
+	}
+
+	updateGroups := make(map[key]*value)
+	for _, update := range updates {
+		k := key{
+			CreatorUsername:   update.FormCreator,
+			ServiceIdentifier: update.FormIdentifier,
+			TaskIdentifier:    update.TaskIdentifier,
+		}
+		g, ok := updateGroups[k]
+		if !ok {
+			updateGroups[k] = &value{
+				TaskName: update.TaskName,
+				Updates:  []*db.AllNewUpdatesForUserRow{update},
+			}
+		} else {
+			g.Updates = append(g.Updates, update)
+		}
+	}
+
+	c.HTML(http.StatusOK, "yourTaskUpdates.html.tmpl", gin.H{
+		"session": sessionData,
+		"updates": updateGroups,
+	})
+}
+
+func (mc *MainController) MarkTaskUpdatesAsRead(c *gin.Context) {
+	sessionData, ok := GetSessionData(c)
+	if !ok || !sessionData.LoggedIn {
+		AbortError(c, http.StatusUnauthorized, ErrNotLoggedIn)
+		return
+	}
+
+	var params struct {
+		Username string `json:"username"`
+		Service  string `json:"service"`
+		Task     string `json:"task"`
+	}
+
+	err := c.ShouldBindJSON(&params)
+	if err != nil {
+		AbortError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	task, err := mc.con.store.GetTaskHeader(c.Request.Context(), db.GetTaskHeaderParams{
+		Username: params.Username,
+		FormSlug: params.Service,
+		TaskSlug: params.Task,
+	})
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+	if task.ClientID != sessionData.UserID {
+		AbortError(c, http.StatusForbidden, ErrForbidden)
+		return
+	}
+
+	err = mc.con.store.AcknowledgeAllUpdatesForTask(c.Request.Context(), task.ID)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (mc *MainController) MarkAllTaskUpdatesAsRead(c *gin.Context) {
+	sessionData, ok := GetSessionData(c)
+	if !ok || !sessionData.LoggedIn {
+		AbortError(c, http.StatusUnauthorized, ErrNotLoggedIn)
+		return
+	}
+
+	err := mc.con.store.AcknowledgeAllUpdatesForUser(c.Request.Context(), sessionData.Username)
+	if err != nil {
+		AbortError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 func (mc *MainController) ServiceDashboard(c *gin.Context) {

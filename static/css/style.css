@@ -1,0 +1,21 @@
+.update_card {
+    min-width: var(--width-card);
+    margin: 0.4em;
+    padding: 0.4em;
+    border: 2px solid var(--color-link);
+    border-radius: var(--border-radius);
+}
+
+.update_card.read {
+    border: 2px solid var(--color-bg-secondary);
+    color: var(--color-bg-secondary);
+}
+
+.update_card.read a {
+    color: var(--color-bg-secondary);
+}
+
+.update_card.read a em {
+    color: var(--color-bg-secondary);
+    border: 2px solid var(--color-bg-secondary);
+}

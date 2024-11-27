@@ -1,4 +1,7 @@
 {{define "title"}}Dashboard{{end}}
+{{define "scripts"}}
+  <script src="/static/js/taskupdate.js"></script>
+{{end}}
 {{define "header"}}
   <h1>Dashboard</h1>
   {{template "navbar" .}}
@@ -6,6 +9,9 @@
 {{define "content"}}
   <h2>Your Tasks</h2>
   <hr>
+  <h2>Your Updates</h2>
+  <hr>
+  <div hx-get="/app/dashboard/your-task-updates" hx-trigger="load"></div>
   <h2>Your Services</h2>
   <hr>
   <ul>

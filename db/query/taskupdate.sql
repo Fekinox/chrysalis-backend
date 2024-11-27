@@ -37,7 +37,36 @@ WHERE
   clients.username = sqlc.arg ('username')
   AND NOT task_updates.acknowledged
 ORDER BY
-  task_updates.created_at ASC;
+  task_updates.created_at DESC;
+
+-- name: AllNewUpdatesForUserOnService :many
+SELECT
+  task_updates.id AS task_update_id,
+  task_updates.created_at AS updated_at,
+  task_updates.old_position,
+  task_updates.old_status,
+  task_updates.new_position,
+  task_updates.new_status,
+  tasks.task_name,
+  tasks.task_summary,
+  tasks.slug AS task_identifier,
+  forms.slug AS form_identifier,
+  form_versions.name AS form_name,
+  creators.username AS form_creator
+FROM
+  task_updates
+  INNER JOIN tasks ON tasks.id = task_updates.task_id
+  INNER JOIN users AS clients ON clients.id = tasks.client_id
+  INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
+  INNER JOIN forms ON forms.id = form_versions.form_id
+  INNER JOIN users AS creators ON creators.id = forms.creator_id
+WHERE
+  clients.username = sqlc.arg ('client_username')
+  AND creators.username = sqlc.arg ('creator_username')
+  AND forms.slug = sqlc.arg ('service_name')
+  AND NOT task_updates.acknowledged
+ORDER BY
+  task_updates.created_at DESC;
 
 -- name: CreateUpdate :one
 INSERT INTO task_updates (task_id, old_position, old_status, new_position, new_status)
