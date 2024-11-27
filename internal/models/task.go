@@ -517,7 +517,7 @@ func UpdateTaskStatusesBulk(
 			newStatus := db.TaskStatus(Dehyphenize(string(u.NewStatus)))
 
 			// Skip update if it would render the task unchanged
-			if header.Idx == int32(u.NewIndex) && header.Status == u.NewStatus {
+			if header.Idx == int32(u.NewIndex) && header.Status == newStatus {
 				resultList = append(resultList, UpdateTaskStatusesResult{
 					TaskIdentifier: u.TaskIdentifier,
 					Result:         "No change",
