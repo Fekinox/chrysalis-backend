@@ -187,20 +187,22 @@ SELECT
 FROM
   task_states
   INNER JOIN (
-  SELECT
-    task_id,
-    (row_number() OVER (PARTITION BY status ORDER BY idx ASC) - 1) as idx
-  FROM
-    task_states
-  ) AS expected_indices ON expected_indices.task_id = task_states.task_id
-  INNER JOIN tasks ON expected_indices.task_id = tasks.id
-  INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
-  INNER JOIN forms ON forms.id = form_versions.form_id
-  INNER JOIN users AS creators ON creators.id = forms.creator_id
+    SELECT
+      task_id,
+      (row_number() OVER (PARTITION BY status ORDER BY idx ASC) - 1) AS idx
+    FROM
+      task_states
+      INNER JOIN tasks ON task_states.task_id = tasks.id
+      INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
+      INNER JOIN forms ON forms.id = form_versions.form_id
+      INNER JOIN users AS creators ON creators.id = forms.creator_id
+    WHERE
+      creators.username = $1
+      AND forms.slug = $2
+    ) AS expected_indices ON expected_indices.task_id = task_states.task_id
+    INNER JOIN tasks ON task_states.task_id = tasks.id
 WHERE
-  creators.username = $1 AND
-  forms.slug = $2 AND
-  task_states.idx <> expected_indices.idx
+  expected_indices.idx <> task_states.idx
 `
 
 type FindDiscrepanciesParams struct {
@@ -895,9 +897,13 @@ func (q *Queries) SwapTasks(ctx context.Context, arg SwapTasksParams) error {
 }
 
 const updatePositionAndStatus = `-- name: UpdatePositionAndStatus :exec
-UPDATE task_states
-  SET idx = $1, status = $2
-  WHERE task_id = $3
+UPDATE
+  task_states
+SET
+  idx = $1,
+  status = $2
+WHERE
+  task_id = $3
 `
 
 type UpdatePositionAndStatusParams struct {

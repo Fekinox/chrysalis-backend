@@ -6,6 +6,9 @@
   {{template "navbar" .}}
 {{end}}
 {{define "content"}}
+  <script>
+  console.log(api)
+  </script>
   <div x-data="form"
     x-init="loadFromURL('{{.params.username}}', '{{.params.service}}')"
     style="

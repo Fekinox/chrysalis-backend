@@ -353,12 +353,15 @@ FROM
       task_id,
       (row_number() OVER (PARTITION BY status ORDER BY idx ASC) - 1) AS idx
     FROM
-      task_states) AS expected_indices ON expected_indices.task_id = task_states.task_id
-  INNER JOIN tasks ON expected_indices.task_id = tasks.id
-  INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
-  INNER JOIN forms ON forms.id = form_versions.form_id
-  INNER JOIN users AS creators ON creators.id = forms.creator_id
+      task_states
+      INNER JOIN tasks ON task_states.task_id = tasks.id
+      INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
+      INNER JOIN forms ON forms.id = form_versions.form_id
+      INNER JOIN users AS creators ON creators.id = forms.creator_id
+    WHERE
+      creators.username = sqlc.arg ('creator_username')
+      AND forms.slug = sqlc.arg ('service_name')
+    ) AS expected_indices ON expected_indices.task_id = task_states.task_id
+    INNER JOIN tasks ON task_states.task_id = tasks.id
 WHERE
-  creators.username = sqlc.arg ('creator_username')
-  AND forms.slug = sqlc.arg ('service_name')
-  AND task_states.idx <> expected_indices.idx;
+  expected_indices.idx <> task_states.idx;

@@ -24,6 +24,7 @@ type Querier interface {
 	AddTextFieldToForm(ctx context.Context, arg AddTextFieldToFormParams) (*TextField, error)
 	AddTextFieldToTask(ctx context.Context, arg AddTextFieldToTaskParams) (*FilledTextField, error)
 	AllNewUpdatesForUser(ctx context.Context, username string) ([]*AllNewUpdatesForUserRow, error)
+	AllNewUpdatesForUserOnService(ctx context.Context, arg AllNewUpdatesForUserOnServiceParams) ([]*AllNewUpdatesForUserOnServiceRow, error)
 	AssignCurrentFormVersion(ctx context.Context, arg AssignCurrentFormVersionParams) (*CurrentFormVersion, error)
 	CreateForm(ctx context.Context, arg CreateFormParams) (*CreateFormRow, error)
 	CreateFormVersion(ctx context.Context, arg CreateFormVersionParams) (*FormVersion, error)

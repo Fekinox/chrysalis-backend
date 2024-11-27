@@ -12,9 +12,12 @@ import (
 )
 
 const acknowledgeAllUpdatesForTask = `-- name: AcknowledgeAllUpdatesForTask :exec
-UPDATE task_updates
-  SET acknowledged = TRUE
-  WHERE task_updates.task_id = $1
+UPDATE
+  task_updates
+SET
+  acknowledged = TRUE
+WHERE
+  task_updates.task_id = $1
 `
 
 func (q *Queries) AcknowledgeAllUpdatesForTask(ctx context.Context, taskID int64) error {
@@ -23,14 +26,16 @@ func (q *Queries) AcknowledgeAllUpdatesForTask(ctx context.Context, taskID int64
 }
 
 const acknowledgeAllUpdatesForUser = `-- name: AcknowledgeAllUpdatesForUser :exec
-UPDATE task_updates
-  SET acknowledged = TRUE
-  FROM
-    tasks
-    INNER JOIN users AS clients ON clients.id = tasks.client_id
-  WHERE
-    clients.username = $1 AND
-    task_updates.task_id = tasks.id
+UPDATE
+  task_updates
+SET
+  acknowledged = TRUE
+FROM
+  tasks
+  INNER JOIN users AS clients ON clients.id = tasks.client_id
+WHERE
+  clients.username = $1
+  AND task_updates.task_id = tasks.id
 `
 
 func (q *Queries) AcknowledgeAllUpdatesForUser(ctx context.Context, username string) error {
@@ -39,9 +44,12 @@ func (q *Queries) AcknowledgeAllUpdatesForUser(ctx context.Context, username str
 }
 
 const acknowledgeUpdate = `-- name: AcknowledgeUpdate :exec
-UPDATE task_updates
-  SET acknowledged = TRUE
-  WHERE id = $1
+UPDATE
+  task_updates
+SET
+  acknowledged = TRUE
+WHERE
+  id = $1
 `
 
 func (q *Queries) AcknowledgeUpdate(ctx context.Context, taskUpdateID int64) error {
@@ -71,9 +79,10 @@ FROM
   INNER JOIN forms ON forms.id = form_versions.form_id
   INNER JOIN users AS creators ON creators.id = forms.creator_id
 WHERE
-  clients.username = $1 AND
-  NOT task_updates.acknowledged
-ORDER BY task_updates.created_at ASC
+  clients.username = $1
+  AND NOT task_updates.acknowledged
+ORDER BY
+  task_updates.created_at DESC
 `
 
 type AllNewUpdatesForUserRow struct {
@@ -124,24 +133,96 @@ func (q *Queries) AllNewUpdatesForUser(ctx context.Context, username string) ([]
 	return items, nil
 }
 
+const allNewUpdatesForUserOnService = `-- name: AllNewUpdatesForUserOnService :many
+SELECT
+  task_updates.id AS task_update_id,
+  task_updates.created_at AS updated_at,
+  task_updates.old_position,
+  task_updates.old_status,
+  task_updates.new_position,
+  task_updates.new_status,
+  tasks.task_name,
+  tasks.task_summary,
+  tasks.slug AS task_identifier,
+  forms.slug AS form_identifier,
+  form_versions.name AS form_name,
+  creators.username AS form_creator
+FROM
+  task_updates
+  INNER JOIN tasks ON tasks.id = task_updates.task_id
+  INNER JOIN users AS clients ON clients.id = tasks.client_id
+  INNER JOIN form_versions ON form_versions.id = tasks.form_version_id
+  INNER JOIN forms ON forms.id = form_versions.form_id
+  INNER JOIN users AS creators ON creators.id = forms.creator_id
+WHERE
+  clients.username = $1
+  AND creators.username = $2
+  AND forms.slug = $3
+  AND NOT task_updates.acknowledged
+ORDER BY
+  task_updates.created_at DESC
+`
+
+type AllNewUpdatesForUserOnServiceParams struct {
+	ClientUsername  string `json:"client_username"`
+	CreatorUsername string `json:"creator_username"`
+	ServiceName     string `json:"service_name"`
+}
+
+type AllNewUpdatesForUserOnServiceRow struct {
+	TaskUpdateID   int64              `json:"task_update_id"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	OldPosition    int32              `json:"old_position"`
+	OldStatus      TaskStatus         `json:"old_status"`
+	NewPosition    int32              `json:"new_position"`
+	NewStatus      TaskStatus         `json:"new_status"`
+	TaskName       string             `json:"task_name"`
+	TaskSummary    string             `json:"task_summary"`
+	TaskIdentifier string             `json:"task_identifier"`
+	FormIdentifier string             `json:"form_identifier"`
+	FormName       string             `json:"form_name"`
+	FormCreator    string             `json:"form_creator"`
+}
+
+func (q *Queries) AllNewUpdatesForUserOnService(ctx context.Context, arg AllNewUpdatesForUserOnServiceParams) ([]*AllNewUpdatesForUserOnServiceRow, error) {
+	rows, err := q.db.Query(ctx, allNewUpdatesForUserOnService, arg.ClientUsername, arg.CreatorUsername, arg.ServiceName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*AllNewUpdatesForUserOnServiceRow
+	for rows.Next() {
+		var i AllNewUpdatesForUserOnServiceRow
+		if err := rows.Scan(
+			&i.TaskUpdateID,
+			&i.UpdatedAt,
+			&i.OldPosition,
+			&i.OldStatus,
+			&i.NewPosition,
+			&i.NewStatus,
+			&i.TaskName,
+			&i.TaskSummary,
+			&i.TaskIdentifier,
+			&i.FormIdentifier,
+			&i.FormName,
+			&i.FormCreator,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createUpdate = `-- name: CreateUpdate :one
-INSERT INTO task_updates (
-  task_id,
-  old_position,
-  old_status,
-  new_position,
-  new_status
-) VALUES (
-  $1, $2, $3, $4, $5
-) RETURNING
-  id,
-  task_id,
-  created_at,
-  old_position,
-  old_status,
-  new_position,
-  new_status,
-  acknowledged
+INSERT INTO task_updates (task_id, old_position, old_status, new_position, new_status)
+  VALUES ($1, $2, $3, $4, $5)
+RETURNING
+  id, task_id, created_at, old_position, old_status, new_position, new_status,
+    acknowledged
 `
 
 type CreateUpdateParams struct {

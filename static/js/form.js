@@ -127,7 +127,7 @@ document.addEventListener('alpine:init', () => {
     async loadFromURL(username, service) {
       try {
         resp = await api.get(`/api/users/${username}/services/${service}`);
-        json = await resp.json();
+        json = resp.data;
 
         this.title = json.name;
         this.description = json.description;
